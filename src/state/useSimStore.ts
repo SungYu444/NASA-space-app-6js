@@ -143,6 +143,7 @@ export const useSimStore = create<SimState>((set, get) => {
     readouts: { speed: 0, size: 0, density: 0, eta: 0, energyTNT: 0, craterKm: 0 },
   }
 
+  
   // Calculate initial impact position
   const initialImpact = simplePathAtTime({
     time: base.duration,
