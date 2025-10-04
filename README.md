@@ -13,3 +13,7 @@ npm install -D @vitejs/plugin-react
 
 
 to run: npm run dev
+
+for backend:
+
+npm install -D @types/express ts-node nodemon
