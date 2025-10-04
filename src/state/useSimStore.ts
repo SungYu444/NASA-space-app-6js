@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { simplePathAtTime } from '../lib/kinematics'
 
 /** Public types used elsewhere */
 export type Mitigation = 'kinetic' | 'tractor' | 'laser'
@@ -141,6 +142,18 @@ export const useSimStore = create<SimState>((set, get) => {
     selectedPresetId: 'small',
     readouts: { speed: 0, size: 0, density: 0, eta: 0, energyTNT: 0, craterKm: 0 },
   }
+
+  // Calculate initial impact position
+  const initialImpact = simplePathAtTime({
+    time: base.duration,
+    duration: base.duration,
+    approachAngleDeg: base.approachAngle,
+    leadTime: base.leadTime,
+    mitigation: base.mitigation,
+    mitigationPower: base.mitigationPower
+  })
+  base.impactLat = initialImpact.impactLat
+  base.impactLon = initialImpact.impactLon
 
   set(base)
   recalcHazards()

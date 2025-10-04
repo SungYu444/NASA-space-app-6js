@@ -14,8 +14,8 @@ export function simplePathAtTime({ time, duration, approachAngleDeg, leadTime, m
   time:number; duration:number; approachAngleDeg:number; leadTime:number; mitigation:Mitigation; mitigationPower:number;
 }){
   // pick an arbitrary target (lat,lon) and apply mitigation-induced drift when active
-  const baseLat = 10
-  const baseLon = 70
+  const baseLat = 40
+  const baseLon = -100
 
   let driftLat = 0
   let driftLon = 0

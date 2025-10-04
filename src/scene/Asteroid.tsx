@@ -2,18 +2,20 @@
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Sparkles, Trail } from '@react-three/drei'
-import { useMemo, useRef } from 'react'
+import { useRef } from 'react'
 import { useSimStore } from '../state/useSimStore'
-import { latLonToVector3 } from '../lib/kinematics'
+import { latLonToVector3, simplePathAtTime } from '../lib/kinematics'
 
 export default function Asteroid(){
   // read sim state
   const time      = useSimStore(s=>s.time)
   const duration  = useSimStore(s=>s.duration)
-  const speed     = useSimStore(s=>s.speed)          // not used for physics, but we’ll map to visuals
-  const approach  = useSimStore(s=>s.approachAngle)  // degrees, affects path bend slightly
-  const impactLat = useSimStore(s=>s.impactLat)
-  const impactLon = useSimStore(s=>s.impactLon)
+  const speed     = useSimStore(s=>s.speed)
+  const approach  = useSimStore(s=>s.approachAngle)
+  const mitigation = useSimStore(s=>s.mitigation)
+  const mitigationPower = useSimStore(s=>s.mitigationPower)
+  const leadTime = useSimStore(s=>s.leadTime)
+  const setImpactLatLon = useSimStore(s=>s.setImpactLatLon)
 
   // refs
   const groupRef = useRef<THREE.Group>(null!)
@@ -23,24 +25,33 @@ export default function Asteroid(){
 
   const { camera } = useThree()
 
-  // Build a smooth curve from "space" → near impact
-  const curve = useMemo(()=>{
-    // start: far away, direction influenced by approach angle
-    // convert approach angle (0..90) into a slight tilt on X/Y
-    const tilt = (approach - 45) / 45 // [-1..+1]
-    const start = new THREE.Vector3(-6 + tilt*0.6, 2 + tilt*0.4, 4 - tilt*0.5)
-
-    // end: just above the planet surface at impact point (radius ~1.02)
-    const end = latLonToVector3(impactLat, impactLon, 1.02)
-
-    // mid: midpoint + a little offset so the path is arced and interesting
-    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5)
-    mid.add(new THREE.Vector3(0.6 + tilt*0.2, 0.25, -0.45))
-
-    return new THREE.QuadraticBezierCurve3(start, mid, end)
-  }, [impactLat, impactLon, approach])
-
   useFrame((_state, dt)=>{
+    // Calculate impact point dynamically based on mitigation (like HTML version)
+    const { impactLat, impactLon } = simplePathAtTime({
+      time,
+      duration,
+      approachAngleDeg: approach,
+      leadTime,
+      mitigation,
+      mitigationPower
+    })
+    
+    // Update store with calculated impact point
+    setImpactLatLon(impactLat, impactLon)
+
+    // Build curve each frame with current impact point
+    const tilt = (approach - 45) / 45
+    const start = new THREE.Vector3(-3 + tilt*0.3, 1.5 + tilt*0.2, 2.5 - tilt*0.3)
+    const end = latLonToVector3(impactLat, impactLon, 1.02)
+    
+    // Calculate midpoint and push it away from Earth center to create a proper arc
+    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5)
+    const midDir = mid.clone().normalize()
+    mid.add(midDir.multiplyScalar(0.8))  // Push outward away from Earth
+    mid.add(new THREE.Vector3(0.5 + tilt*0.1, 0.3, -0.2))  // Additional offset
+    
+    const curve = new THREE.QuadraticBezierCurve3(start, mid, end)
+
     // normalized progress 0..1
     const t = Math.min(1, Math.max(0, time / duration))
 
@@ -88,7 +99,7 @@ export default function Asteroid(){
 
   return (
     <group ref={groupRef}>
-      {/* Trail records the group’s motion each frame and draws a streak */}
+      {/* Trail records the group's motion each frame and draws a streak */}
       <Trail width={0.12} length={9} color="#ffd9a6" attenuation={(t)=>t}>
         <group>
           {/* hot bloom light */}
