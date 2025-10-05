@@ -4,10 +4,6 @@ import { useSimStore } from '../state/useSimStore'
 
 export default function ControlPanel() {
   const s = useSimStore()
-  const { useNasaData, nasaAsteroidData } = useSimStore(s => ({
-    useNasaData: s.useNasaData,
-    nasaAsteroidData: s.nasaAsteroidData
-  }))
 
   // --- rAF loop: advances time while running=true ---
   useEffect(() => {
@@ -27,12 +23,12 @@ export default function ControlPanel() {
   const durationLabel = useMemo(() => s.duration.toFixed(0), [s.duration])
   const timeLabel = useMemo(() => s.time.toFixed(1), [s.time])
 
-  // lock everything except Pause/Reset while running
+  // lock everything except Pause/Reset/Impact Analysis while running
   const locked = s.running
   const dim = locked ? 0.5 : 1
 
   return (
-    <div className="panel control" style={{ width: 280 }}>
+    <div className="panel control" style={{ width: 380 }}>
       {/* Preset picker + Hit */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginBottom: 12 }}>
         <select
@@ -62,46 +58,21 @@ export default function ControlPanel() {
         </button>
       </div>
 
-      {/* Start/Pause + Reset — these stay enabled */}
+      {/* Start/Pause + Reset — always enabled */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <button
-          className="btn"
-          onClick={() => s.toggleRun()}
-        // leave enabled so it can Pause while running
-        >
+        <button className="btn" onClick={() => s.toggleRun()}>
           {s.running ? 'Pause' : 'Start'}
         </button>
-        <button
-          className="btn"
-          onClick={() => s.reset()}
-        // leave enabled to allow Reset while running
-        >
+        <button className="btn" onClick={() => s.reset()}>
           Reset
         </button>
       </div>
 
-      {/* NASA Data Status */}
-      {useNasaData && nasaAsteroidData && (
-        <div style={{
-          fontSize: '11px',
-          color: 'rgba(102, 224, 255, 0.9)',
-          marginBottom: '8px',
-          textAlign: 'center',
-          padding: '6px',
-          background: 'rgba(102, 224, 255, 0.1)',
-          borderRadius: '4px',
-          border: '1px solid rgba(102, 224, 255, 0.3)'
-        }}>
-          🌌 Using NASA Data: {nasaAsteroidData.basicInfo.name}
-        </div>
-      )}
-
-      {/* Impact Analysis Button */}
+      {/* Impact Analysis — always enabled */}
       <div style={{ marginBottom: 12 }}>
         <button
           className="cta"
           onClick={() => s.showImpactAnalysis()}
-          disabled={locked}
           style={{
             width: '100%',
             padding: '12px 16px',
@@ -109,7 +80,8 @@ export default function ControlPanel() {
             borderColor: '#66e0ff',
             fontSize: '14px',
             fontWeight: '600',
-            opacity: dim
+            // keep fully opaque even when running
+            opacity: 1
           }}
         >
           📊 Show Impact Analysis
@@ -117,10 +89,7 @@ export default function ControlPanel() {
       </div>
 
       {/* Size */}
-      <div className="row">
-        <span className="label">Asteroid Size (m)</span>
-        <span className="value">{s.size.toFixed(0)}</span>
-      </div>
+      <div className="row"><span className="label">Asteroid Size (m)</span><span className="value">{s.size.toFixed(0)}</span></div>
       <input
         type="range"
         min={10}
@@ -133,10 +102,7 @@ export default function ControlPanel() {
       />
 
       {/* Speed */}
-      <div className="row">
-        <span className="label">Speed (km/s)</span>
-        <span className="value">{s.speed.toFixed(1)}</span>
-      </div>
+      <div className="row"><span className="label">Speed (km/s)</span><span className="value">{s.speed.toFixed(1)}</span></div>
       <input
         type="range"
         min={5}
@@ -149,10 +115,7 @@ export default function ControlPanel() {
       />
 
       {/* Approach Angle */}
-      <div className="row">
-        <span className="label">Approach Angle (°)</span>
-        <span className="value">{s.approachAngle.toFixed(0)}</span>
-      </div>
+      <div className="row"><span className="label">Approach Angle (°)</span><span className="value">{s.approachAngle.toFixed(0)}</span></div>
       <input
         type="range"
         min={5}
@@ -165,10 +128,7 @@ export default function ControlPanel() {
       />
 
       {/* Density */}
-      <div className="row">
-        <span className="label">Density (kg/m³)</span>
-        <span className="value">{s.density.toFixed(0)}</span>
-      </div>
+      <div className="row"><span className="label">Density (kg/m³)</span><span className="value">{s.density.toFixed(0)}</span></div>
       <input
         type="range"
         min={500}
@@ -181,10 +141,7 @@ export default function ControlPanel() {
       />
 
       {/* Time scrubber */}
-      <div className="row">
-        <span className="label">Time</span>
-        <span className="value">{timeLabel} / {durationLabel}s</span>
-      </div>
+      <div className="row"><span className="label">Time</span><span className="value">{timeLabel} / {durationLabel}s</span></div>
       <input
         type="range"
         min={0}
