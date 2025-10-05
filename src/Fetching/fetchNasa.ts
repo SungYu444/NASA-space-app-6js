@@ -1,6 +1,7 @@
-const NASA_API_KEY = "8WclDxodroWROJndc3awXjZDW6R0NfZGVopGUY0M"
-const BASE_URL = 'https://api.nasa.gov/neo/rest/v1';
+import 'dotenv/config'
 
+const API_KEY = process.env.NASA_API_KEY ?? 'DEMO_KEY'
+const bse_Url = process.env.BASE_URL ?? 'https://api.nasa.gov/neo/rest/v1'
 /*
 object type to save each data
 */
@@ -129,9 +130,9 @@ fetching data from NASA api and put those data into the objects
 */ 
 
 export async function fetchAsteroidList(date: string): Promise<AsteroidListItem[]> {
-  const url = `${BASE_URL}/feed?start_date=${date}&end_date=${date}&api_key=${NASA_API_KEY}`;
+  const best_url = `${bse_Url}/feed?start_date=${date}&end_date=${date}&api_key=${API_KEY}`;
   
-  const response = await fetch(url);
+  const response = await fetch(best_url);
   if (!response.ok) {
     throw new Error(`Failed to fetch asteroid list: ${response.status} ${response.statusText}`);
   }
@@ -152,9 +153,9 @@ export async function fetchAsteroidList(date: string): Promise<AsteroidListItem[
  * @returns Detailed asteroid data
  */
 export async function fetchAsteroidDetails(asteroidId: string): Promise<NeoDetail> {
-  const url = `${BASE_URL}/neo/${asteroidId}?api_key=${NASA_API_KEY}`;
+  const best_url = `${bse_Url}/neo/${asteroidId}?api_key=${API_KEY}`;
   
-  const response = await fetch(url);
+  const response = await fetch(best_url);
   if (!response.ok) {
     throw new Error(`Failed to fetch asteroid details: ${response.status} ${response.statusText}`);
   }
@@ -297,10 +298,14 @@ export async function getAsteroidInfoById(asteroidId: string): Promise<Processed
   }
 }
 
+
+
+
+
 // ========== TEST SECTION ==========
 async function main() {
   try {
-    const asteroidId = '3428698'; // Change this to test different asteroids
+    const asteroidId = '2247517'; // Change this to test different asteroids
     console.log(`Searching for asteroid ID: "${asteroidId}"`);
     console.log('---');
 
@@ -347,9 +352,10 @@ async function main() {
     process.exit(1);
   }
 }
+  
 
 // Test preload
-/*
+
 (async () => {
   const list = await preloadAsteroidListOnLoad();
   console.log('Preload list length:', list.length);
@@ -358,6 +364,11 @@ async function main() {
     console.log(`${item.name} (ID: ${item.id})`);
   });
 })();
-*/
+
 // Uncomment to test asteroid search by ID
- main();
+ //main();
+ 
+
+/*
+use preloadTsteroidListonLoad on react to show a loaded information 
+*/ 
