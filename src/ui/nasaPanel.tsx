@@ -224,33 +224,31 @@ export default function AsteroidViewer() {
           {/* Tab panels */}
           {activeTab === 'simple' && (
             <div role="tabpanel" aria-label="Simple view">
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>
+              <div style={{ fontSize: 25, fontWeight: 600, marginBottom: 8 }}>
                 Asteroid Name: {info.basicInfo.name}
               </div>
-              <div style={{ marginBottom: 4 }}>
-                Absolute Magnitude: {info.basicInfo.absoluteMagnitude}
-              </div>
+    
+            
+              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 , color:'#66ff66'}}>Q: Potentially Hazardous to earth?</div>
               <div style={{ marginBottom: 40 }}>
-                Potentially Hazardous to earth: {info.basicInfo.isPotentiallyHazardous ? 'Yes' : 'No'}
+               {info.basicInfo.isPotentiallyHazardous ? 'Yes' : 'No'}
               </div>
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>How big is it?</div>
+              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 , color:'#66ff66'}}>Q: How big is it?</div>
               <div style={{ marginBottom: 40 }}>
                 The biggest part of it have a diameter of {info.size.kilometers.max} km !
               </div>
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>How fast is it going?</div>
+              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 ,color:'#66ff66'}}>Q: How fast is it going?</div>
               <div style={{ marginBottom: 40 }}>km/s: {info.speed.kmPerSecond ?? 'N/A'}</div>
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>How close is it today?</div>
+              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 ,color:'#66ff66'}}>Q: How close is it today?</div>
               <div style={{ marginBottom: 40 }}>It is {info.closeApproach.missDistanceKm ?? 'N/A'} km !</div>
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Is it going to hit us ?</div>
+              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 ,color:'#66ff66'}}>Q: Is it going to hit us ?</div>
               <div style={{
                 marginBottom: 4,
-                color: info.impactRisk.riskLevel === 'HIGH' ? '#ff6b6b' :
-                       info.impactRisk.riskLevel === 'MEDIUM' ? '#ffa500' :
-                       info.impactRisk.riskLevel === 'LOW' ? '#66ff66' : '#999'
+            
               }}>
                 Risk Level: {info.impactRisk.riskLevel}
               </div>
@@ -260,7 +258,7 @@ export default function AsteroidViewer() {
                 </div>
               )}
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>When will it approach next time?</div>
+              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4, color:'#66ff66' }}>Q: When will it approach next time?</div>
               {info.impactRisk.nextCloseApproach.date && (
                 <div style={{ fontSize: 15, marginBottom: 4 }}>
                   Next time: {info.impactRisk.nextCloseApproach.date}
@@ -286,7 +284,7 @@ export default function AsteroidViewer() {
 
           {activeTab === 'technical' && (
             <div role="tabpanel" aria-label="Technical view">
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>
+              <div style={{ fontSize: 25, fontWeight: 600, marginBottom: 8 }}>
                 Asteroid Name: {info.basicInfo.name}
               </div>
               <div style={{ marginBottom: 4 }}>
@@ -296,23 +294,23 @@ export default function AsteroidViewer() {
                 Potentially Hazardous to earth: {info.basicInfo.isPotentiallyHazardous ? 'Yes' : 'No'}
               </div>
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>
+              <div style={{ fontSize: 20 , fontWeight: 600, marginTop: 12, marginBottom: 4 }}>
                 Diameter of Asteroid
               </div>
               <div style={{ marginBottom: 4 }}>
                 Min: {info.size.kilometers.min} km | Max: {info.size.kilometers.max} km | Avg: {info.size.kilometers.avg} km
               </div>
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Speed</div>
+              <div style={{ fontSize: 20, fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Speed of the Asteroid</div>
               <div style={{ marginBottom: 4 }}>km/s: {info.speed.kmPerSecond ?? 'N/A'}</div>
               <div style={{ marginBottom: 4 }}>km/h: {info.speed.kmPerHour ?? 'N/A'}</div>
               <div style={{ marginBottom: 4 }}>mph: {info.speed.milesPerHour ?? 'N/A'}</div>
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Close Approach</div>
+              <div style={{ fontSize: 20, fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Close Approach</div>
               <div style={{ marginBottom: 4 }}>Date: {info.closeApproach.date ?? 'N/A'}</div>
               <div style={{ marginBottom: 8 }}>Miss Distance: {info.closeApproach.missDistanceKm ?? 'N/A'} km</div>
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Orbital Elements</div>
+              <div style={{ fontSize: 20, fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Orbital Elements</div>
               <div style={{ fontSize: 15, marginBottom: 4 }}>
                 Semi-Major Axis: {info.orbital.semiMajorAxisAU ?? 'N/A'} AU
               </div>
@@ -329,7 +327,7 @@ export default function AsteroidViewer() {
                 Aphelion: {info.orbital.aphelionDistanceAU ?? 'N/A'} AU
               </div>
 
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Impact Risk Assessment</div>
+              <div style={{ fontSize: 20, fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Impact Risk Assessment</div>
               <div style={{
                 marginBottom: 4,
                 color: info.impactRisk.riskLevel === 'HIGH' ? '#ff6b6b' :
