@@ -18,13 +18,13 @@ function CircleOverlay({
 }) {
   const segments = 256
   const size = useSimStore(s => s.size)
-  
+
   const pts = useMemo(() => {
     // Safety check for valid inputs
     if (!isFinite(lat) || !isFinite(lon) || !isFinite(radiusKm) || !isFinite(altitude)) {
       return []
     }
-
+    
     const arr: THREE.Vector3[] = []
     const earthRadiusKm = 6371
     
@@ -43,7 +43,7 @@ function CircleOverlay({
     
     return arr
   }, [lat, lon, radiusKm, altitude])
-
+  
   // Don't render if no valid points
   if (pts.length === 0) {
     return null
@@ -72,22 +72,24 @@ export default function ImpactOverlays() {
     seismicKm: s.seismicKm ?? 0,
     tsunamiKm: s.tsunamiKm ?? 0
   }))
-
+  
   // Don't render if coordinates are invalid
   if (!isFinite(targetLat) || !isFinite(targetLon) || !isFinite(blastKm) || !isFinite(seismicKm) || !isFinite(tsunamiKm)) {
     return null
   }
-
-  // Debug: Log when coordinates change
-  console.log(`ImpactOverlays rendering with target: ${targetLat.toFixed(2)}°N, ${targetLon.toFixed(2)}°E`)
-
-  // Create a unique key based on target coordinates to force re-render
-  const targetKey = `${targetLat.toFixed(3)}_${targetLon.toFixed(3)}`
-
+  
+  // Debug: Log when coordinates or sizes change
+  console.log(`ImpactOverlays - target: ${targetLat.toFixed(2)}°N, ${targetLon.toFixed(2)}°E`)
+  console.log(`ImpactOverlays - blast: ${blastKm.toFixed(0)}km, seismic: ${seismicKm.toFixed(0)}km, tsunami: ${tsunamiKm.toFixed(0)}km`)
+  
+  // Create a unique key based on target coordinates AND radius sizes to force re-render
+  const targetKey = `${targetLat.toFixed(3)}_${targetLon.toFixed(3)}_${blastKm.toFixed(0)}_${seismicKm.toFixed(0)}_${tsunamiKm.toFixed(0)}`
+  
   return (
     <group key={targetKey}>
       <CircleOverlay lat={targetLat} lon={targetLon} radiusKm={blastKm} color={0xffb86c} />
       <CircleOverlay lat={targetLat} lon={targetLon} radiusKm={seismicKm} color={0xf8f8f2} altitude={1.003} />
+      <CircleOverlay lat={targetLat} lon={targetLon} radiusKm={tsunamiKm} color={0x66e0ff} altitude={1.004} />
     </group>
   )
 }
