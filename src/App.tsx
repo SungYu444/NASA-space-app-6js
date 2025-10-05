@@ -6,6 +6,7 @@ import Asteroid from './scene/Asteroid'
 import ImpactOverlays from './overlays/ImpactOverlays'
 import ControlPanel from './ui/ControlPanel'
 import MitigationPanel from './ui/MitigationPanel'
+import ImpactMap from './ui/ImpactMap'
 import DefendMode from './modes/DefendMode'
 import StoryMode from './modes/StoryMode'
 import { useSimStore } from './state/useSimStore'
@@ -14,6 +15,8 @@ import CameraRig from './scene/CameraRig'
 export default function App(){
   const mode = useSimStore(s=>s.mode)
   const running = useSimStore(s=>s.running)
+  const showImpactMap = useSimStore(s=>s.showImpactMap)
+  const setShowImpactMap = useSimStore(s=>s.setShowImpactMap)
 
   return (
     <div className="app-shell">
@@ -42,6 +45,11 @@ export default function App(){
         {mode==='story' && <StoryMode />}
         <div className="footer-hint">Left-drag: rotate • Mouse wheel: zoom • Right-drag: pan</div>
       </div>
+
+      {/* Impact Map Modal */}
+      {showImpactMap && (
+        <ImpactMap onClose={() => {}} />
+      )}
     </div>
   )
 }
@@ -52,11 +60,15 @@ function TopBar(){
   const reset = useSimStore(s=>s.reset)
   const running = useSimStore(s=>s.running)
   const toggleRun = useSimStore(s=>s.toggleRun)
+  const showImpactMap = useSimStore(s=>s.showImpactMap)
 
   return (
     <div className="topbar">
       <div className="panel" style={{padding:'10px 14px'}}>
-        <span className="brand">ASTEROID DEFENDER</span>
+        <span className="brand">
+          ASTEROID DEFENDER
+          {showImpactMap && <span style={{color: '#ff6aa2', marginLeft: '8px'}}>• IMPACT ANALYSIS</span>}
+        </span>
       </div>
       <div className="mode-switch">
         {(['scenario','defend','story'] as const).map(m => (
@@ -64,8 +76,22 @@ function TopBar(){
         ))}
       </div>
       <div className="right-box">
-        <button className="cta" onClick={toggleRun}>{running? 'Pause' : 'Start'}</button>
-        <button className="cta" onClick={reset}>Reset</button>
+        <button 
+          className="cta" 
+          onClick={toggleRun}
+          disabled={showImpactMap}
+          style={{ opacity: showImpactMap ? 0.5 : 1 }}
+        >
+          {running? 'Pause' : 'Start'}
+        </button>
+        <button 
+          className="cta" 
+          onClick={reset}
+          disabled={showImpactMap}
+          style={{ opacity: showImpactMap ? 0.5 : 1 }}
+        >
+          Reset
+        </button>
       </div>
     </div>
   )
