@@ -4,7 +4,7 @@ import { ProcessedAsteroidInfo } from '../Fetching/fetchNasa'
 
 /** Public types used elsewhere */
 export type Mitigation = 'kinetic' | 'tractor' | 'laser'
-export type Mode = 'scenario' | 'defend' | 'story'
+export type Mode = 'scenario' | 'defend' | 'story' | 'quiz'
 
 type AsteroidPreset = {
   id: string
@@ -60,6 +60,9 @@ type SimState = {
   seismicKm: number
   tsunamiKm: number
 
+  quizVisible: boolean
+  quizStopT: number
+
   mode: Mode
   presets: AsteroidPreset[]
   selectedPresetId: string
@@ -75,7 +78,7 @@ type SimState = {
   isShaking: boolean
   shakeIntensity: number
   shakeStartTime: number
-  
+
   // NASA asteroid data
   nasaAsteroidData: ProcessedAsteroidInfo | null
   useNasaData: boolean
@@ -90,6 +93,9 @@ type SimState = {
   setTargetLatLon: (lat: number, lon: number) => void
   hit: () => void
   setMode: (m: Mode) => void
+  openQuiz: () => void
+  closeQuiz: () => void
+  resumeFromQuiz: () => void
 
   /* setters */
   setRunning: (v: boolean) => void
@@ -161,6 +167,7 @@ export const useSimStore = create<SimState>((set, get) => {
     blastKm: 0,
     seismicKm: 0,
     tsunamiKm: 0,
+    quizStopT: 0.96,
     mode: 'scenario' as Mode,
     presets: [
       { id: 'tiny', name: 'Tiny (40 m, 15 km/s)', size: 40, speed: 15, density: 2500 },
@@ -201,56 +208,59 @@ export const useSimStore = create<SimState>((set, get) => {
     ...get(),
 
     tick: (dt) => {
-      const { running, time, duration, showImpactMap, isShaking, shakeStartTime } = get()
-      // Don't advance time if impact map is showing - freeze the simulation
-      if (!running || showImpactMap) return
+      const st = get()
+      const {
+        running, time, duration, showImpactMap,
+        isShaking, shakeStartTime, quizVisible, mode
+      } = st
 
-      const t = Math.min(duration, time + dt)
-      const newHasImpacted = t >= duration
+      if (!running || showImpactMap || quizVisible) return
 
-      // Handle impact shake
-      let newShakeState = {}
-      if (newHasImpacted && !get().hasImpacted) {
-        // Impact just happened - start shaking
-        newShakeState = {
-          isShaking: true,
-          shakeIntensity: 1.0,
-          shakeStartTime: performance.now()
-        }
-      } else if (isShaking) {
-        // Update shake intensity over time
-        const shakeElapsed = (performance.now() - shakeStartTime) / 1000 // seconds
-        const shakeDuration = 3.0 // 3 seconds total
+      const dtSafe = Number.isFinite(dt) ? dt : 0
+      const durSafe = Number.isFinite(duration) && duration > 0 ? duration : 10
+      const timeSafe = Number.isFinite(time) ? time : 0
 
-        if (shakeElapsed >= shakeDuration) {
-          // Shake is over
-          newShakeState = {
-            isShaking: false,
-            shakeIntensity: 0
-          }
-        } else {
-          // Gradually decrease shake intensity
-          const progress = shakeElapsed / shakeDuration
-          const intensity = Math.max(0, 1.0 - progress * progress) // Quadratic decay
-          newShakeState = {
-            shakeIntensity: intensity
-          }
+      let t = Math.min(durSafe, timeSafe + dtSafe)
+
+      // === QUIZ: open only on crossing stop point (no permanent clamp) ===
+      if (mode === 'quiz') {
+        const raw = get().quizStopT
+        const stopFrac = Number.isFinite(raw) ? Math.min(0.999, Math.max(0, raw)) : 0.96
+        const stopAt = stopFrac * durSafe
+
+        // open once when crossing from below -> at the stop point
+        if (!quizVisible && timeSafe < stopAt && t >= stopAt) {
+          set({ time: stopAt, running: false, quizVisible: true })
+          // keep your hazard/readout recompute if needed
+          const recalc = (st as any).recalcHazards || (() => { })
+          recalc()
+          return
         }
       }
 
-      set({
-        time: t,
-        hasImpacted: newHasImpacted,
-        ...newShakeState
-      })
-      recalcHazards()
+      const newHasImpacted = t >= durSafe
+
+      let newShakeState = {}
+      if (newHasImpacted && !st.hasImpacted) {
+        newShakeState = { isShaking: true, shakeIntensity: 1.0, shakeStartTime: performance.now() }
+      } else if (isShaking) {
+        const elapsed = (performance.now() - shakeStartTime) / 1000
+        const total = 3.0
+        newShakeState = elapsed >= total
+          ? { isShaking: false, shakeIntensity: 0 }
+          : { shakeIntensity: Math.max(0, 1 - (elapsed / total) ** 2) }
+      }
+
+      set({ time: t, hasImpacted: newHasImpacted, ...newShakeState })
+      // recalcHazards()
     },
 
+
+
     start: () => {
-      const { showImpactMap } = get()
-      // Don't allow starting if impact map is showing
-      if (showImpactMap) return
-      set({ running: true })
+      const { showImpactMap, quizVisible } = get();
+      if (showImpactMap || quizVisible) return;
+      set({ running: true });
     },
     pause: () => {
       const { showImpactMap } = get()
@@ -258,13 +268,7 @@ export const useSimStore = create<SimState>((set, get) => {
       if (showImpactMap) return
       set({ running: false })
     },
-    reset: () => set({
-      running: false,
-      time: 0,
-      hasImpacted: false,
-      showImpactMap: false,
-      useTargetImpact: false,      // <— clear on reset
-    }),
+    reset: () => set({ running: false, time: 0, hasImpacted: false, showImpactMap: false, quizVisible: false }),
 
     selectPreset: (id) => {
       const p = get().presets.find(p => p.id === id)
@@ -289,8 +293,12 @@ export const useSimStore = create<SimState>((set, get) => {
     setMode: (m) => set({ mode: m }),
 
     setRunning: (v) => set({ running: v }),
-    setTime: (v) => set({ time: Math.max(0, Math.min(get().duration, v)) }),
-    setDuration: (v) => set({ duration: Math.max(1, v) }),
+    setTime: (v) => {
+      const d = get().duration
+      const vv = Number.isFinite(v) ? v : 0
+      set({ time: Math.max(0, Math.min(Number.isFinite(d) ? d : 10, vv)) })
+    },
+    setDuration: (v) => set({ duration: Math.max(0.1, Number.isFinite(v) ? v : 10) }),
 
     setSize: (v) => { set({ size: v }); recalcHazards({ size: v }) },
     setSpeed: (v) => { set({ speed: v }); recalcHazards({ speed: v }) },
@@ -304,8 +312,8 @@ export const useSimStore = create<SimState>((set, get) => {
         const sizeInMeters = Math.max(10, Math.min(1000, rawSize)) // Clamp size to reasonable range
         const speedInKmS = Math.max(5, Math.min(100, data.speed.kmPerSecond || 20)) // Clamp speed
         const approachAngle = Math.max(0, Math.min(90, data.orbital.inclinationDegrees || 45)) // Clamp angle
-        
-        set({ 
+
+        set({
           size: sizeInMeters,
           speed: speedInKmS,
           approachAngle: approachAngle,
@@ -321,7 +329,7 @@ export const useSimStore = create<SimState>((set, get) => {
       const defaultSize = 120
       const defaultSpeed = 25
       const defaultAngle = 45
-      set({ 
+      set({
         size: defaultSize,
         speed: defaultSpeed,
         approachAngle: defaultAngle
@@ -339,11 +347,15 @@ export const useSimStore = create<SimState>((set, get) => {
       shakeStartTime: performance.now()
     }),
 
+    resumeFromQuiz: () => set((st) => ({
+      quizVisible: false,
+      running: true,
+    })),
+
     toggleRun: () => {
-      const { running, showImpactMap } = get()
-      // Don't allow toggling if impact map is showing
-      if (showImpactMap) return
-      set({ running: !running })
+      const { running, showImpactMap, quizVisible } = get();
+      if (showImpactMap || quizVisible) return;
+      set({ running: !running });
     },
 
     setParam: (key, value) => {

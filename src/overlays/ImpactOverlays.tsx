@@ -24,7 +24,7 @@ function CircleOverlay({
     if (!isFinite(lat) || !isFinite(lon) || !isFinite(radiusKm) || !isFinite(altitude)) {
       return []
     }
-    
+
     const arr: THREE.Vector3[] = []
     const earthRadiusKm = 6371
     
@@ -43,7 +43,7 @@ function CircleOverlay({
     
     return arr
   }, [lat, lon, radiusKm, altitude])
-  
+
   // Don't render if no valid points
   if (pts.length === 0) {
     return null
@@ -72,18 +72,18 @@ export default function ImpactOverlays() {
     seismicKm: s.seismicKm ?? 0,
     tsunamiKm: s.tsunamiKm ?? 0
   }))
-  
+
   // Don't render if coordinates are invalid
   if (!isFinite(targetLat) || !isFinite(targetLon) || !isFinite(blastKm) || !isFinite(seismicKm) || !isFinite(tsunamiKm)) {
     return null
   }
-  
+
   // Debug: Log when coordinates change
   console.log(`ImpactOverlays rendering with target: ${targetLat.toFixed(2)}°N, ${targetLon.toFixed(2)}°E`)
-  
+
   // Create a unique key based on target coordinates to force re-render
   const targetKey = `${targetLat.toFixed(3)}_${targetLon.toFixed(3)}`
-  
+
   return (
     <group key={targetKey}>
       <CircleOverlay lat={targetLat} lon={targetLon} radiusKm={blastKm} color={0xffb86c} />
