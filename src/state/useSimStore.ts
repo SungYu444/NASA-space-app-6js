@@ -4,7 +4,7 @@ import { ProcessedAsteroidInfo } from '../Fetching/fetchNasa'
 
 /** Public types used elsewhere */
 export type Mitigation = 'kinetic' | 'tractor' | 'laser'
-export type Mode = 'scenario' | 'defend' | 'story' | 'quiz'
+export type Mode = 'scenario' | 'defend' | 'story' | 'quiz' | 'learn'
 
 type AsteroidPreset = {
   id: string
@@ -62,6 +62,7 @@ type SimState = {
 
   quizVisible: boolean
   quizStopT: number
+  learnVisible: boolean
 
   mode: Mode
   presets: AsteroidPreset[]
@@ -97,6 +98,8 @@ type SimState = {
   openQuiz: () => void
   closeQuiz: () => void
   resumeFromQuiz: () => void
+  openLearn: () => void
+  closeLearn: () => void
 
   /* setters */
   setRunning: (v: boolean) => void
@@ -188,6 +191,7 @@ export const useSimStore = create<SimState>((set, get) => {
     useTargetImpact: false,
     nasaAsteroidData: null,
     useNasaData: false,
+    learnVisible: false,
   }
 
 
@@ -366,6 +370,8 @@ export const useSimStore = create<SimState>((set, get) => {
       quizVisible: false,
       running: true,
     })),
+    openLearn: () => set({ learnVisible: true }),
+    closeLearn: () => set({ learnVisible: false }),
 
     toggleRun: () => {
       const { running, showImpactMap, quizVisible } = get();

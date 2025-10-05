@@ -10,6 +10,7 @@ import { useSimStore } from './state/useSimStore'
 import CameraRig from './scene/CameraRig'
 import NasaPanel from './ui/nasaPanel'
 import QuizMode from './modes/QuizMode'
+import LearnMode from './modes/LearnMode'
 import Starfield from './scene/Starfield'
 import QuizLaunchPrompt from './ui/QuizLaunchPrompt'
 
@@ -17,6 +18,7 @@ export default function App() {
   const mode = useSimStore(s => s.mode)
   const showImpactMap = useSimStore(s => s.showImpactMap)
   const quizVisible = useSimStore(s => s.quizVisible)
+  const learnVisible = useSimStore(s => s.learnVisible)
   const running = useSimStore(s => s.running)
   const time = useSimStore(s => s.time)
 
@@ -49,6 +51,7 @@ export default function App() {
       {/* Overlays / Modals (render outside UI so they cover everything) */}
       {showImpactMap && <ImpactMap onClose={() => { }} />}
       {quizVisible && <QuizMode />}
+      {learnVisible && <LearnMode />}
     </div>
   )
 }
@@ -58,19 +61,22 @@ function TopBar() {
   const setMode = useSimStore(s => s.setMode)
   const showImpactMap = useSimStore(s => s.showImpactMap)
   const quizVisible = useSimStore(s => s.quizVisible)
+  const learnVisible = useSimStore(s => s.learnVisible)
+  const openLearn = useSimStore(s => s.openLearn)
 
   return (
     <div className="topbar">
       <span className="brand">
         {showImpactMap && <span style={{ color: '#ff6aa2', marginLeft: 8 }}>• IMPACT ANALYSIS</span>}
         {quizVisible && <span style={{ color: '#66e0ff', marginLeft: 8 }}>• QUIZ</span>}
+        {learnVisible && <span style={{ color: '#ffd700', marginLeft: 8 }}>• LEARN</span>}
       </span>
       <div className="mode-switch">
-        {(['scenario', 'quiz'] as const).map(m => (
+        {(['scenario', 'quiz', 'learn'] as const).map(m => (
           <button
             key={m}
             className={'panel ' + (mode === m ? 'active' : '')}
-            onClick={() => setMode(m)}
+            onClick={() => m === 'learn' ? openLearn() : setMode(m)}
           >
             {m.toUpperCase()}
           </button>
