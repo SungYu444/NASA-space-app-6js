@@ -75,8 +75,7 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
     fetchElevation()
   }, [impactLat, impactLon])
 
-  // Analyze environmental effects based on elevation and impact energy
-  const analyzeEnvironmentalEffects = (elev: number) => {
+    const analyzeEnvironmentalEffects = (elev: number) => {
     const effects: string[] = []
     
     // Determine terrain type

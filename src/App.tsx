@@ -6,8 +6,6 @@ import Asteroid from './scene/Asteroid'
 import ImpactOverlays from './overlays/ImpactOverlays'
 import ControlPanel from './ui/ControlPanel'
 import ImpactMap from './ui/ImpactMap'
-import DefendMode from './modes/DefendMode'
-import StoryMode from './modes/StoryMode'
 import { useSimStore } from './state/useSimStore'
 import CameraRig from './scene/CameraRig'
 import NasaPanel from './ui/nasaPanel'
@@ -28,7 +26,6 @@ export default function App() {
             <Starfield />
             <Globe />
             <Effects />
-            {mode !== 'story' && <Asteroid />}
             <ImpactOverlays />
           </Suspense>
         </Canvas>
@@ -40,8 +37,6 @@ export default function App() {
         <ControlPanel />
         <StatsPanel />
         <NasaPanel />
-        {mode === 'defend' && <DefendMode />}
-        {mode === 'story' && <StoryMode />}
         <div className="footer-hint">Left-drag: rotate • Mouse wheel: zoom • Right-drag: pan</div>
       </div>
 
@@ -65,7 +60,7 @@ function TopBar() {
         {quizVisible && <span style={{ color: '#66e0ff', marginLeft: 8 }}>• QUIZ</span>}
       </span>
       <div className="mode-switch">
-        {(['scenario', 'defend', 'story', 'quiz'] as const).map(m => (
+        {(['scenario', 'quiz'] as const).map(m => (
           <button
             key={m}
             className={'panel ' + (mode === m ? 'active' : '')}
