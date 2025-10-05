@@ -31,6 +31,113 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
 
   const { craterKm, energyTNT, speed, size } = readouts
 
+<<<<<<< Updated upstream
+=======
+  // Environmental effects state
+  const [elevation, setElevation] = useState<number | null>(null)
+  const [terrainType, setTerrainType] = useState<string>('Unknown')
+  const [tsunamiRisk, setTsunamiRisk] = useState<string>('Calculating...')
+  const [environmentalEffects, setEnvironmentalEffects] = useState<string[]>([])
+
+  // Fetch elevation data using Open-Elevation API
+  useEffect(() => {
+    const fetchElevation = async () => {
+      try {
+        const response = await fetch(
+          `https://api.open-elevation.com/api/v1/lookup?locations=${impactLat},${impactLon}`
+        )
+        const data = await response.json()
+        if (data.results && data.results[0]) {
+          const elev = data.results[0].elevation
+          setElevation(elev)
+          
+          // Determine terrain type and environmental effects
+          analyzeEnvironmentalEffects(elev)
+        }
+      } catch (error) {
+        console.error('Failed to fetch elevation:', error)
+        setElevation(null)
+        setTerrainType('Data unavailable')
+        setTsunamiRisk('Unable to determine')
+      }
+    }
+    
+    fetchElevation()
+  }, [impactLat, impactLon])
+
+  // Analyze environmental effects based on elevation and impact energy
+    const analyzeEnvironmentalEffects = (elev: number) => {
+    const effects: string[] = []
+    
+    // Determine terrain type
+    if (elev < 0) {
+      setTerrainType('Ocean/Sea')
+      
+      // Ocean impact - high tsunami risk
+      const waterDepth = Math.abs(elev)
+      if (energyTNT > 100) {
+        setTsunamiRisk('EXTREME - Mega-tsunami expected')
+        effects.push(`Mega-tsunami with waves up to ${(energyTNT * 0.5).toFixed(0)}m high`)
+        effects.push(`Coastal devastation within ${(craterKm * 50).toFixed(0)} km`)
+        effects.push('Widespread flooding of low-lying areas')
+      } else if (energyTNT > 10) {
+        setTsunamiRisk('HIGH - Major tsunami likely')
+        effects.push(`Major tsunami waves up to ${(energyTNT * 0.3).toFixed(0)}m`)
+        effects.push('Significant coastal damage expected')
+      } else {
+        setTsunamiRisk('MODERATE - Local tsunami possible')
+        effects.push('Local tsunami waves possible')
+      }
+      effects.push('Massive water displacement')
+      effects.push('Marine ecosystem destruction')
+      
+    } else if (elev < 10) {
+      setTerrainType('Coastal/Low-lying')
+      setTsunamiRisk('MODERATE - Vulnerable to flooding')
+      effects.push('Severe flooding from displaced water')
+      effects.push('Storm surge-like effects')
+      effects.push('Groundwater contamination')
+      
+    } else if (elev < 100) {
+      setTerrainType('Plains/Valley')
+      setTsunamiRisk('LOW - Inland location')
+      effects.push('Widespread ground shaking')
+      effects.push('Dust cloud affecting air quality')
+      effects.push('Potential river/lake displacement')
+      
+    } else if (elev < 500) {
+      setTerrainType('Hills/Plateau')
+      setTsunamiRisk('VERY LOW - Elevated terrain')
+      effects.push('Seismic landslides possible')
+      effects.push('Regional atmospheric disturbance')
+      
+    } else {
+      setTerrainType('Mountains')
+      setTsunamiRisk('NEGLIGIBLE - Mountainous terrain')
+      effects.push('Avalanches and rockslides')
+      effects.push('Valley flooding from melted ice')
+    }
+    
+    // Add energy-based effects
+    if (energyTNT > 1000) {
+      effects.push('Global climate impact (nuclear winter)')
+      effects.push('Mass extinction event likely')
+    } else if (energyTNT > 100) {
+      effects.push('Regional climate disruption')
+      effects.push('Crop failure in surrounding regions')
+    } else if (energyTNT > 10) {
+      effects.push('Local weather pattern disruption')
+      effects.push('Agricultural damage in impact zone')
+    }
+    
+    // Add seismic effects
+    const magnitude = 4 + Math.log10(energyTNT)
+    effects.push(`Earthquake equivalent: Magnitude ${magnitude.toFixed(1)}`)
+    
+    setEnvironmentalEffects(effects)
+  }
+
+>>>>>>> Stashed changes
   // Calculate accurate impact zone sizes based on meteorite properties
   // Using scientific formulas for impact effects
   

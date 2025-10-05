@@ -7,8 +7,6 @@ import ImpactOverlays from './overlays/ImpactOverlays'
 import ControlPanel from './ui/ControlPanel'
 import MitigationPanel from './ui/MitigationPanel'
 import ImpactMap from './ui/ImpactMap'
-import DefendMode from './modes/DefendMode'
-import StoryMode from './modes/StoryMode'
 import { useSimStore } from './state/useSimStore'
 import CameraRig from './scene/CameraRig'
 
@@ -68,8 +66,19 @@ function TopBar(){
           {showImpactMap && <span style={{color: '#ff6aa2', marginLeft: '8px'}}>• IMPACT ANALYSIS</span>}
         </span>
       <div className="mode-switch">
+<<<<<<< Updated upstream
         {(['scenario','defend','story'] as const).map(m => (
           <button key={m} className={"panel "+(mode===m?'active':'')} onClick={()=>setMode(m)}>{m.toUpperCase()}</button>
+=======
+        {(['scenario', 'quiz'] as const).map(m => (
+          <button
+            key={m}
+            className={'panel ' + (mode === m ? 'active' : '')}
+            onClick={() => setMode(m)}
+          >
+            {m.toUpperCase()}
+          </button>
+>>>>>>> Stashed changes
         ))}
       </div>
     </div>
