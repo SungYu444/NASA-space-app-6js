@@ -20,7 +20,9 @@ export default function Asteroid() {
   // NEW: target + flag that says “use the target as the impact point”
   const targetLat = useSimStore(s => s.targetLat)
   const targetLon = useSimStore(s => s.targetLon)
-  const useTargetImpact = useSimStore(s => s.useTargetImpact) // <-- add in store if not already
+  const useTargetImpact = useSimStore(s => s.useTargetImpact)
+  const nasaData = useSimStore(s => s.nasaAsteroidData)
+  const useNasaData = useSimStore(s => s.useNasaData)
 
   const setImpactLatLon = useSimStore(s => s.setImpactLatLon)
   const { isShaking, shakeIntensity } = useSimStore(s => ({

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { simplePathAtTime } from '../lib/kinematics'
+import { ProcessedAsteroidInfo } from '../Fetching/fetchNasa'
 
 /** Public types used elsewhere */
 export type Mitigation = 'kinetic' | 'tractor' | 'laser'
@@ -74,6 +75,10 @@ type SimState = {
   isShaking: boolean
   shakeIntensity: number
   shakeStartTime: number
+  
+  // NASA asteroid data
+  nasaAsteroidData: ProcessedAsteroidInfo | null
+  useNasaData: boolean
 
   /* Core actions */
   tick: (dt: number) => void
@@ -94,6 +99,9 @@ type SimState = {
   setSpeed: (v: number) => void
   setDensity: (v: number) => void
   setApproachAngle: (v: number) => void
+  setNasaAsteroidData: (data: ProcessedAsteroidInfo | null) => void
+  setUseNasaData: (use: boolean) => void
+  clearNasaData: () => void
   setMitigation: (v: Mitigation) => void
   setMitigationPower: (v: number) => void
   setLeadTime: (v: number) => void
@@ -169,6 +177,8 @@ export const useSimStore = create<SimState>((set, get) => {
     shakeIntensity: 0,
     shakeStartTime: 0,
     useTargetImpact: false,
+    nasaAsteroidData: null,
+    useNasaData: false,
   }
 
 
@@ -286,6 +296,38 @@ export const useSimStore = create<SimState>((set, get) => {
     setSpeed: (v) => { set({ speed: v }); recalcHazards({ speed: v }) },
     setDensity: (v) => { set({ density: v }); recalcHazards({ density: v }) },
     setApproachAngle: (v) => set({ approachAngle: v }),
+    setNasaAsteroidData: (data) => {
+      set({ nasaAsteroidData: data })
+      if (data) {
+        // Update simulation parameters with real NASA data
+        const rawSize = (data.size.meters.min + data.size.meters.max) / 2
+        const sizeInMeters = Math.max(10, Math.min(1000, rawSize)) // Clamp size to reasonable range
+        const speedInKmS = Math.max(5, Math.min(100, data.speed.kmPerSecond || 20)) // Clamp speed
+        const approachAngle = Math.max(0, Math.min(90, data.orbital.inclinationDegrees || 45)) // Clamp angle
+        
+        set({ 
+          size: sizeInMeters,
+          speed: speedInKmS,
+          approachAngle: approachAngle,
+          useNasaData: true
+        })
+        recalcHazards({ size: sizeInMeters, speed: speedInKmS })
+      }
+    },
+    setUseNasaData: (use) => set({ useNasaData: use }),
+    clearNasaData: () => {
+      set({ nasaAsteroidData: null, useNasaData: false })
+      // Reset to default values
+      const defaultSize = 120
+      const defaultSpeed = 25
+      const defaultAngle = 45
+      set({ 
+        size: defaultSize,
+        speed: defaultSpeed,
+        approachAngle: defaultAngle
+      })
+      recalcHazards({ size: defaultSize, speed: defaultSpeed })
+    },
     setMitigation: (v) => set({ mitigation: v }),
     setMitigationPower: (v) => set({ mitigationPower: v }),
     setLeadTime: (v) => set({ leadTime: v }),

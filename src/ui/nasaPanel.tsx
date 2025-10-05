@@ -5,6 +5,7 @@ import {
   type AsteroidListItem,
   type ProcessedAsteroidInfo
 } from '../Fetching/fetchNasa';
+import { useSimStore } from '../state/useSimStore';
 
 export default function AsteroidViewer() {
   const [list, setList] = useState<AsteroidListItem[]>([]);
@@ -12,6 +13,11 @@ export default function AsteroidViewer() {
   const [info, setInfo] = useState<ProcessedAsteroidInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Connect to simulation store
+  const setNasaAsteroidData = useSimStore(s => s.setNasaAsteroidData);
+  const useNasaData = useSimStore(s => s.useNasaData);
+  const clearNasaData = useSimStore(s => s.clearNasaData);
 
   // Preload asteroid list on mount
   useEffect(() => {
@@ -48,6 +54,9 @@ export default function AsteroidViewer() {
       setError(null);
       const details = await getAsteroidInfoById(selectedId);
       setInfo(details);
+      
+      // Update simulation with NASA data
+      setNasaAsteroidData(details);
     } catch (err) {
       console.error('Failed to fetch details:', err);
       setError('Failed to fetch asteroid details.');
@@ -135,7 +144,47 @@ export default function AsteroidViewer() {
 
           <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>Close Approach</div>
           <div style={{ marginBottom: 4 }}>Date: {info.closeApproach.date ?? 'N/A'}</div>
-          <div>Miss Distance: {info.closeApproach.missDistanceKm ?? 'N/A'} km</div>
+          <div style={{ marginBottom: 12 }}>Miss Distance: {info.closeApproach.missDistanceKm ?? 'N/A'} km</div>
+          
+          {/* Integration Buttons */}
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+            <button
+              onClick={() => {
+                setNasaAsteroidData(info);
+                alert('Asteroid data integrated! The simulation now uses real NASA data.');
+              }}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                background: 'linear-gradient(135deg, #66e0ff, #4dd4ff)',
+                border: '1px solid #66e0ff',
+                borderRadius: '6px',
+                color: '#000',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              🚀 Integrate
+            </button>
+            <button
+              onClick={() => {
+                clearNasaData();
+                alert('NASA data cleared! Using default asteroid.');
+              }}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                background: 'linear-gradient(135deg, #ff6b6b, #ff5252)',
+                border: '1px solid #ff6b6b',
+                borderRadius: '6px',
+                color: '#fff',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              🔄 Reset
+            </button>
+          </div>
         </div>
       )}
     </div>
