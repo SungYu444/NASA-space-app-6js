@@ -37,7 +37,7 @@ function CircleOverlay({
     const lonRad = lon * Math.PI / 180
     
     // Angular radius calculation - convert to radians properly
-    const angle = (cappedRadiusKm / earthRadiusKm) * size / 15
+    const angle = (cappedRadiusKm / earthRadiusKm) * size / 30
     const angularRadius = angle * Math.PI / 180  // Convert degrees to radians for spherical trig
     
     for (let i = 0; i <= segments; i++) {
