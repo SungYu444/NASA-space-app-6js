@@ -6,6 +6,19 @@ import { useEffect, useState, useRef } from 'react'
 import { useSimStore } from '../state/useSimStore'
 import { latLonToVector3, simplePathAtTime } from '../lib/kinematics'
 
+const isFiniteVec3 = (v: THREE.Vector3) =>
+  Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)
+
+const clampLat = (lat: number) =>
+  Number.isFinite(lat) ? THREE.MathUtils.clamp(lat, -89.999, 89.999) : 0
+
+const normLon = (lon: number) => {
+  if (!Number.isFinite(lon)) return 0
+  // normalize to [-180, 180)
+  let l = ((lon % 360) + 540) % 360 - 180
+  return l
+}
+
 export default function Asteroid() {
   // read sim state
   const time = useSimStore(s => s.time)
@@ -23,8 +36,6 @@ export default function Asteroid() {
   const targetLat = useSimStore(s => s.targetLat)
   const targetLon = useSimStore(s => s.targetLon)
   const useTargetImpact = useSimStore(s => s.useTargetImpact)
-  const nasaData = useSimStore(s => s.nasaAsteroidData)
-  const useNasaData = useSimStore(s => s.useNasaData)
 
   const setImpactLatLon = useSimStore(s => s.setImpactLatLon)
   const { isShaking, shakeIntensity } = useSimStore(s => ({
@@ -48,12 +59,13 @@ export default function Asteroid() {
   const coreRef = useRef<THREE.Mesh>(null!)
   const glowRef = useRef<THREE.Mesh>(null!)
   const lightRef = useRef<THREE.PointLight>(null!)
+  const lastGoodPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 3)) // safe seed
 
   const { camera } = useThree()
 
   useFrame((_state, dt) => {
     // Compute impact point (honor target when requested)
-    const { impactLat, impactLon } = simplePathAtTime({
+    const res = simplePathAtTime({
       time,
       duration,
       approachAngleDeg: approach,
@@ -62,49 +74,70 @@ export default function Asteroid() {
       mitigationPower,
       targetLat,
       targetLon,
-      lockToTarget: useTargetImpact, // key: forces end-point to the clicked location
+      lockToTarget: useTargetImpact,
     })
 
-    // Update store for overlays/other systems
-    setImpactLatLon(impactLat, impactLon)
+    // Guard: if function ever returns bad numbers, bail early this frame
+    if (
+      !res ||
+      !Number.isFinite(res.impactLat) ||
+      !Number.isFinite(res.impactLon)
+    ) {
+      // don't update Trail with NaN; just keep previous transform
+      return
+    }
+
+    // Safe lat/lon
+    const iLat = clampLat(res.impactLat)
+    const iLon = normLon(res.impactLon)
+
+    // Update store (with safe values)
+    setImpactLatLon(iLat, iLon)
 
     // --- Build a curve that NEVER crosses the Earth ---
     // End point slightly above the surface
-    const end = latLonToVector3(impactLat, impactLon, 1.02)
+    let end = latLonToVector3(iLat, iLon, 1.02)
+    if (!isFiniteVec3(end)) {
+      // fallback: keep last position and skip this frame
+      return
+    }
 
     // Surface normal at end
-    const n = end.clone().normalize()
+    let n = end.clone().normalize()
+    if (!isFiniteVec3(n) || n.lengthSq() === 0) n.set(0, 1, 0)
 
-    // Build an orthonormal basis (t, b) in the tangent plane at 'end'
-    // Start with cross against world-up; fall back if near parallel (poles)
-    let t = new THREE.Vector3().crossVectors(n, new THREE.Vector3(0, 1, 0))
-    if (t.lengthSq() < 1e-6) {
-      t = new THREE.Vector3().crossVectors(n, new THREE.Vector3(1, 0, 0))
-    }
-    t.normalize()
-    const b = new THREE.Vector3().crossVectors(n, t).normalize()
+    // tangent basis at end
+    let tVec = new THREE.Vector3().crossVectors(n, new THREE.Vector3(0, 1, 0))
+    if (tVec.lengthSq() < 1e-6) tVec = new THREE.Vector3().crossVectors(n, new THREE.Vector3(1, 0, 0))
+    tVec.normalize()
+    const bVec = new THREE.Vector3().crossVectors(n, tVec).normalize()
 
-    // Use the approach angle to spin direction around the normal (tangent heading)
-    const theta = THREE.MathUtils.degToRad(approach)
-    const dir = t.clone().multiplyScalar(Math.cos(theta)).addScaledVector(b, Math.sin(theta)).normalize()
+    // approach heading in tangent plane
+    const theta = THREE.MathUtils.degToRad(approach || 0)
+    const dir = tVec.clone().multiplyScalar(Math.cos(theta)).addScaledVector(bVec, Math.sin(theta)).normalize()
 
-    // Choose start and mid strictly outside the sphere (radius > 1)
-    const start = n.clone().multiplyScalar(3.2)   // along normal, safely outside
-      .addScaledVector(dir, 1.0)                  // small lateral offset for nicer arc
-
-    const mid = n.clone().multiplyScalar(2.2)     // control point also outside
-      .addScaledVector(dir, 0.5)
+    // start/mid strictly outside the unit sphere
+    const start = n.clone().multiplyScalar(3.2).addScaledVector(dir, 1.0)
+    const mid = n.clone().multiplyScalar(2.2).addScaledVector(dir, 0.5)
 
     const curve = new THREE.QuadraticBezierCurve3(start, mid, end)
 
     // progress 0..1
-    const tNorm = Math.min(1, Math.max(0, time / duration))
+    const tNorm = Math.min(1, Math.max(0, duration > 0 ? time / duration : 0))
 
     // position & orientation
-    const pos = curve.getPoint(tNorm)
+    let pos = curve.getPoint(tNorm)
+    if (!isFiniteVec3(pos)) {
+      // don't feed NaNs into Trail/meshline; reuse last good
+      pos = lastGoodPos.current
+    } else {
+      lastGoodPos.current.copy(pos)
+    }
     groupRef.current.position.copy(pos)
 
-    const tan = curve.getTangent(tNorm).normalize()
+    let tan = curve.getTangent(tNorm)
+    if (!isFiniteVec3(tan) || tan.lengthSq() === 0) tan.set(0, 0, 1)
+    tan.normalize()
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan)
     groupRef.current.quaternion.copy(q)
 

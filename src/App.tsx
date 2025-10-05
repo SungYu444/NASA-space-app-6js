@@ -5,20 +5,18 @@ import Effects from './scene/Effects'
 import Asteroid from './scene/Asteroid'
 import ImpactOverlays from './overlays/ImpactOverlays'
 import ControlPanel from './ui/ControlPanel'
-import MitigationPanel from './ui/MitigationPanel'
 import ImpactMap from './ui/ImpactMap'
 import DefendMode from './modes/DefendMode'
 import StoryMode from './modes/StoryMode'
 import { useSimStore } from './state/useSimStore'
 import CameraRig from './scene/CameraRig'
 import NasaPanel from './ui/nasaPanel'
+import QuizMode from './modes/QuizMode'
 
-
-export default function App(){
-  const mode = useSimStore(s=>s.mode)
-  const running = useSimStore(s=>s.running)
-  const showImpactMap = useSimStore(s=>s.showImpactMap)
-  const setShowImpactMap = useSimStore(s=>s.setShowImpactMap)
+export default function App() {
+  const mode = useSimStore(s => s.mode)
+  const showImpactMap = useSimStore(s => s.showImpactMap)
+  const quizVisible = useSimStore(s => s.quizVisible)
 
   return (
     <div className="app-shell">
@@ -28,12 +26,9 @@ export default function App(){
           <Suspense fallback={null}>
             <Globe />
             <Effects />
-            
-            {/* Optional while debugging: <Effects /> */}
             {mode !== 'story' && <Asteroid />}
             <ImpactOverlays />
           </Suspense>
-
         </Canvas>
       </div>
 
@@ -41,50 +36,52 @@ export default function App(){
       <div className="ui-layer">
         <TopBar />
         <ControlPanel />
-        
         <StatsPanel />
         <NasaPanel />
-        
-        {mode==='defend' && <DefendMode />}
-        {mode==='story' && <StoryMode />}
+        {mode === 'defend' && <DefendMode />}
+        {mode === 'story' && <StoryMode />}
         <div className="footer-hint">Left-drag: rotate • Mouse wheel: zoom • Right-drag: pan</div>
       </div>
 
-      {/* Impact Map Modal */}
-      {showImpactMap && (
-        <ImpactMap onClose={() => {}} />
-      )}
+      {/* Overlays / Modals (render outside UI so they cover everything) */}
+      {showImpactMap && <ImpactMap onClose={() => { }} />}
+      {quizVisible && <QuizMode />}
     </div>
   )
 }
 
-function TopBar(){
-  const mode = useSimStore(s=>s.mode)
-  const setMode = useSimStore(s=>s.setMode)
-  const reset = useSimStore(s=>s.reset)
-  const running = useSimStore(s=>s.running)
-  const toggleRun = useSimStore(s=>s.toggleRun)
-  const showImpactMap = useSimStore(s=>s.showImpactMap)
+function TopBar() {
+  const mode = useSimStore(s => s.mode)
+  const setMode = useSimStore(s => s.setMode)
+  const showImpactMap = useSimStore(s => s.showImpactMap)
+  const quizVisible = useSimStore(s => s.quizVisible)
 
   return (
     <div className="topbar">
-        <span className="brand">
-          {showImpactMap && <span style={{color: '#ff6aa2', marginLeft: '8px'}}>• IMPACT ANALYSIS</span>}
-        </span>
+      <span className="brand">
+        {showImpactMap && <span style={{ color: '#ff6aa2', marginLeft: 8 }}>• IMPACT ANALYSIS</span>}
+        {quizVisible && <span style={{ color: '#66e0ff', marginLeft: 8 }}>• QUIZ</span>}
+      </span>
       <div className="mode-switch">
-        {(['scenario','defend','story'] as const).map(m => (
-          <button key={m} className={"panel "+(mode===m?'active':'')} onClick={()=>setMode(m)}>{m.toUpperCase()}</button>
+        {(['scenario', 'defend', 'story', 'quiz'] as const).map(m => (
+          <button
+            key={m}
+            className={'panel ' + (mode === m ? 'active' : '')}
+            onClick={() => setMode(m)}
+          >
+            {m.toUpperCase()}
+          </button>
         ))}
       </div>
     </div>
   )
 }
 
-function StatsPanel(){
-  const { speed, size, density, eta, energyTNT, craterKm } = useSimStore(s=>s.readouts)
+function StatsPanel() {
+  const { speed, size, density, eta, energyTNT, craterKm } = useSimStore(s => s.readouts)
   return (
     <div className="panel stat-panel">
-      <div style={{display:'grid', gap:8}}>
+      <div style={{ display: 'grid', gap: 8 }}>
         <div className="badge">Live Stats</div>
         <div className="row"><span className="label">Speed</span><span className="value">{speed.toFixed(1)} km/s</span></div>
         <div className="row"><span className="label">Size</span><span className="value">{size.toFixed(1)} m</span></div>
