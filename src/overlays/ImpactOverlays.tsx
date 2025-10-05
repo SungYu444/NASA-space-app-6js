@@ -18,7 +18,7 @@ function CircleOverlay({
 }) {
   const segments = 256
   const size = useSimStore(s => s.size)
-  
+
   const pts = useMemo(() => {
     // Safety check for valid inputs
     if (!isFinite(lat) || !isFinite(lon) || !isFinite(radiusKm) || !isFinite(altitude)) {
@@ -78,16 +78,18 @@ export default function ImpactOverlays() {
     return null
   }
   
-  // Debug: Log when coordinates change
-  console.log(`ImpactOverlays rendering with target: ${targetLat.toFixed(2)}°N, ${targetLon.toFixed(2)}°E`)
+  // Debug: Log when coordinates or sizes change
+  console.log(`ImpactOverlays - target: ${targetLat.toFixed(2)}°N, ${targetLon.toFixed(2)}°E`)
+  console.log(`ImpactOverlays - blast: ${blastKm.toFixed(0)}km, seismic: ${seismicKm.toFixed(0)}km, tsunami: ${tsunamiKm.toFixed(0)}km`)
   
-  // Create a unique key based on target coordinates to force re-render
-  const targetKey = `${targetLat.toFixed(3)}_${targetLon.toFixed(3)}`
+  // Create a unique key based on target coordinates AND radius sizes to force re-render
+  const targetKey = `${targetLat.toFixed(3)}_${targetLon.toFixed(3)}_${blastKm.toFixed(0)}_${seismicKm.toFixed(0)}_${tsunamiKm.toFixed(0)}`
   
   return (
     <group key={targetKey}>
       <CircleOverlay lat={targetLat} lon={targetLon} radiusKm={blastKm} color={0xffb86c} />
       <CircleOverlay lat={targetLat} lon={targetLon} radiusKm={seismicKm} color={0xf8f8f2} altitude={1.003} />
+      <CircleOverlay lat={targetLat} lon={targetLon} radiusKm={tsunamiKm} color={0x66e0ff} altitude={1.004} />
     </group>
   )
 }
