@@ -31,21 +31,13 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
     const duration = useSimStore.getState().duration
     setTime(duration - 0.1) // Set to 0.1 seconds before impact
     setShowImpactMap(false)
-    
-    // Stop the shake effect
-    useSimStore.setState({ isShaking: false, shakeIntensity: 0 })
-    
     onClose()
   }
 
   const handleReturnToSimulation = () => {
-    // Reset the simulation completely when returning
+    // Reset the simulation completely when returning (includes shake state)
     const reset = useSimStore.getState().reset
     reset()
-    
-    // Stop the shake effect
-    useSimStore.setState({ isShaking: false, shakeIntensity: 0 })
-    
     onClose()
   }
 

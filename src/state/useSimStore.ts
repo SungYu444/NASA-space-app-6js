@@ -78,6 +78,7 @@ type SimState = {
   isShaking: boolean
   shakeIntensity: number
   shakeStartTime: number
+  hasShaken: boolean // Track if shake has occurred this simulation
 
   // NASA asteroid data
   nasaAsteroidData: ProcessedAsteroidInfo | null
@@ -183,6 +184,7 @@ export const useSimStore = create<SimState>((set, get) => {
     isShaking: false,
     shakeIntensity: 0,
     shakeStartTime: 0,
+    hasShaken: false,
     useTargetImpact: false,
     nasaAsteroidData: null,
     useNasaData: false,
@@ -241,18 +243,15 @@ export const useSimStore = create<SimState>((set, get) => {
       const newHasImpacted = t >= durSafe
 
       let newShakeState = {}
-      // Only shake if impact map is NOT showing
-      if (newHasImpacted && !st.hasImpacted && !showImpactMap) {
-        newShakeState = { isShaking: true, shakeIntensity: 1.0, shakeStartTime: performance.now() }
-      } else if (isShaking && !showImpactMap) {
+      // Only shake once per simulation - if hasShaken is true, don't shake again
+      if (newHasImpacted && !st.hasImpacted && !st.hasShaken) {
+        newShakeState = { isShaking: true, shakeIntensity: 1.0, shakeStartTime: performance.now(), hasShaken: true }
+      } else if (isShaking) {
         const elapsed = (performance.now() - shakeStartTime) / 1000
         const total = 3.0
         newShakeState = elapsed >= total
           ? { isShaking: false, shakeIntensity: 0 }
           : { shakeIntensity: Math.max(0, 1 - (elapsed / total) ** 2) }
-      } else if (showImpactMap && isShaking) {
-        // If impact map is showing, immediately stop shaking
-        newShakeState = { isShaking: false, shakeIntensity: 0 }
       }
 
       set({ time: t, hasImpacted: newHasImpacted, ...newShakeState })
@@ -272,7 +271,7 @@ export const useSimStore = create<SimState>((set, get) => {
       if (showImpactMap) return
       set({ running: false })
     },
-    reset: () => set({ running: false, time: 0, hasImpacted: false, showImpactMap: false, quizVisible: false }),
+    reset: () => set({ running: false, time: 0, hasImpacted: false, showImpactMap: false, quizVisible: false, isShaking: false, shakeIntensity: 0, hasShaken: false }),
 
     selectPreset: (id) => {
       const p = get().presets.find(p => p.id === id)
@@ -282,6 +281,12 @@ export const useSimStore = create<SimState>((set, get) => {
         size: p.size,
         speed: p.speed,
         density: p.density,
+        // Reset shake state for new asteroid
+        hasShaken: false,
+        isShaking: false,
+        shakeIntensity: 0,
+        hasImpacted: false,
+        time: 0
       })
       recalcHazards({ size: p.size, speed: p.speed, density: p.density })
     },
@@ -321,7 +326,13 @@ export const useSimStore = create<SimState>((set, get) => {
           size: sizeInMeters,
           speed: speedInKmS,
           approachAngle: approachAngle,
-          useNasaData: true
+          useNasaData: true,
+          // Reset shake state for new asteroid
+          hasShaken: false,
+          isShaking: false,
+          shakeIntensity: 0,
+          hasImpacted: false,
+          time: 0
         })
         recalcHazards({ size: sizeInMeters, speed: speedInKmS })
       }
