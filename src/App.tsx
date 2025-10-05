@@ -26,7 +26,6 @@ export default function App() {
             <Starfield />
             <Globe />
             <Effects />
-            {mode !== 'story' && <Asteroid />}
             <ImpactOverlays />
           </Suspense>
         </Canvas>
@@ -61,15 +60,7 @@ function TopBar() {
         {quizVisible && <span style={{ color: '#66e0ff', marginLeft: 8 }}>• QUIZ</span>}
       </span>
       <div className="mode-switch">
-<<<<<<< HEAD
-        {(['scenario', 'defend', 'story', 'quiz'] as const).map(m => (
-=======
-<<<<<<< Updated upstream
-        {(['scenario','defend','story'] as const).map(m => (
-          <button key={m} className={"panel "+(mode===m?'active':'')} onClick={()=>setMode(m)}>{m.toUpperCase()}</button>
-=======
         {(['scenario', 'quiz'] as const).map(m => (
->>>>>>> 91df55fd87770d07b2b23b1e9a92057f26afcc50
           <button
             key={m}
             className={'panel ' + (mode === m ? 'active' : '')}
@@ -77,10 +68,6 @@ function TopBar() {
           >
             {m.toUpperCase()}
           </button>
-<<<<<<< HEAD
-=======
->>>>>>> Stashed changes
->>>>>>> 91df55fd87770d07b2b23b1e9a92057f26afcc50
         ))}
       </div>
     </div>
