@@ -81,7 +81,7 @@ export type AsteroidListItem = {
 
 // NEW: Better organized structure for frontend
 
-
+// this object will be use to showcase the info of the selectedd asteriod
 export type ProcessedAsteroidInfo = {
   // Basic Info
   basicInfo: {
@@ -135,11 +135,13 @@ export async function fetchAsteroidList(date: string): Promise<AsteroidListItem[
   const response = await fetch(best_url);
   if (!response.ok) {
     throw new Error(`Failed to fetch asteroid list: ${response.status} ${response.statusText}`);
-  }
+  } // if doesnt work throw an error
   
   const data = await response.json();
   const neos = data.near_earth_objects?.[date] || [];
-  
+  // data is the reponse of json 
+  // neo will be the object of this function extracting data from  
+
   return neos.map((neo: any) => ({
     id: neo.id,
     name: neo.name,
@@ -166,6 +168,7 @@ export async function fetchAsteroidDetails(asteroidId: string): Promise<NeoDetai
 /**
  * Preload asteroid list on page load.
  * Falls back to yesterday if today's feed is empty.
+ 
  */
 export async function preloadAsteroidListOnLoad(): Promise<AsteroidListItem[]> {
   const today = new Date();
@@ -243,6 +246,8 @@ export function processAsteroidData(detail: NeoDetail): ProcessedAsteroidInfo {
   const missKm   = latest ? parseNum(latest.miss_distance.kilometers) : null;
   const inclDeg  = detail.orbital_data?.inclination ? parseNum(detail.orbital_data.inclination) : null;
 
+
+  // return a list of the stuff. this will be the part that shows the info of a specific asteriods
   return {
     basicInfo: {
       id: detail.id,
@@ -283,6 +288,7 @@ export function processAsteroidData(detail: NeoDetail): ProcessedAsteroidInfo {
 }
 
 /**
+ * asteroid ID is the primary key and it can be use too find all data from all objects
  * Main orchestrator: input asteroid ID, output all processed data.
  * This is what React will call when user selects an asteroid and clicks "Search".
  * @param asteroidId - NASA NEO ID (e.g., "3542519")
@@ -301,7 +307,7 @@ export async function getAsteroidInfoById(asteroidId: string): Promise<Processed
 
 
 
-
+/*
 // ========== TEST SECTION ==========
 async function main() {
   try {
@@ -352,10 +358,10 @@ async function main() {
     process.exit(1);
   }
 }
-  
+  */
 
 // Test preload
-
+/*
 (async () => {
   const list = await preloadAsteroidListOnLoad();
   console.log('Preload list length:', list.length);
@@ -364,7 +370,7 @@ async function main() {
     console.log(`${item.name} (ID: ${item.id})`);
   });
 })();
-
+*/
 // Uncomment to test asteroid search by ID
  //main();
  
