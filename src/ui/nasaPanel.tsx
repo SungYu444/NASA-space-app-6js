@@ -7,12 +7,13 @@
   } from '../Fetching/fetchNasa';
   import { useSimStore } from '../state/useSimStore';
 
-  export default function AsteroidViewer() {
-    const [list, setList] = useState<AsteroidListItem[]>([]);
-    const [selectedId, setSelectedId] = useState<string>(''); // no auto-select
-    const [info, setInfo] = useState<ProcessedAsteroidInfo | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+export default function AsteroidViewer() {
+  const [list, setList] = useState<AsteroidListItem[]>([]);
+  const [selectedId, setSelectedId] = useState<string>(''); // no auto-select
+  const [info, setInfo] = useState<ProcessedAsteroidInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
     
     // Connect to simulation store
     const setNasaAsteroidData = useSimStore(s => s.setNasaAsteroidData);
@@ -55,8 +56,7 @@
         const details = await getAsteroidInfoById(selectedId);
         setInfo(details);
         
-        // Update simulation with NASA data
-        setNasaAsteroidData(details);
+        // Don't automatically integrate - just fetch and display the data
       } catch (err) {
         console.error('Failed to fetch details:', err);
         setError('Failed to fetch asteroid details.');
@@ -227,7 +227,7 @@
                </div>
              )}
             
-             {/* Integration Buttons */}
+             {/* Integration Button */}
              <div 
                style={{ display: 'flex', gap: '8px', marginTop: '8px' }}
                onMouseDown={(e) => e.stopPropagation()}
@@ -236,42 +236,54 @@
                <button
                  onClick={() => {
                    setNasaAsteroidData(info);
-                   alert('Asteroid data integrated! The simulation now uses real NASA data.');
+                   setShowSuccessMessage(true);
+                   setTimeout(() => setShowSuccessMessage(false), 1500);
                  }}
                  style={{
-                   flex: 1,
+                   width: '100%',
                    padding: '8px 12px',
                    background: 'linear-gradient(135deg, #66e0ff, #4dd4ff)',
                    border: '1px solid #66e0ff',
                    borderRadius: '6px',
                    color: '#000',
                    fontWeight: '600',
-                   cursor: 'pointer'
+                   cursor: 'pointer',
+                   fontSize: '20px'
                  }}
                  onMouseDown={(e) => e.stopPropagation()}
                >
-                 🚀 Integrate
-               </button>
-               <button
-                 onClick={() => {
-                   clearNasaData();
-                   alert('NASA data cleared! Using default asteroid.');
-                 }}
-                 style={{
-                   flex: 1,
-                   padding: '8px 12px',
-                   background: 'linear-gradient(135deg, #ff6b6b, #ff5252)',
-                   border: '1px solid #ff6b6b',
-                   borderRadius: '6px',
-                   color: '#fff',
-                   fontWeight: '600',
-                   cursor: 'pointer'
-                 }}
-                 onMouseDown={(e) => e.stopPropagation()}
-               >
-                 🔄 Reset
+                 Apply Parameters
                </button>
              </div>
+          </div>
+        )}
+        
+        {/* Success Message */}
+        {showSuccessMessage && (
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -500%)',
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              color: '#ffffff',
+              padding: '20px 30px',
+              borderRadius: '12px',
+              border: '2px solid #66e0ff',
+              fontSize: '18px',
+              fontWeight: '600',
+              zIndex: 1000,
+              textAlign: 'center',
+              boxShadow: '0 8px 32px rgba(102, 224, 255, 0.3)',
+              backdropFilter: 'blur(10px)',
+              pointerEvents: 'none'
+            }}
+          >
+            Parameters Applied Successfully!
+            <div style={{ fontSize: '14px', marginTop: '8px', opacity: 0.8 }}>
+              Simulation now uses real NASA data
+            </div>
           </div>
         )}
       </div>
