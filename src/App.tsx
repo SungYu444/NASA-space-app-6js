@@ -26,6 +26,7 @@ export default function App() {
             <Starfield />
             <Globe />
             <Effects />
+            {mode !== 'story' && <Asteroid />}
             <ImpactOverlays />
           </Suspense>
         </Canvas>
