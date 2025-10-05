@@ -116,12 +116,34 @@ export type ProcessedAsteroidInfo = {
   // Orbital Info
   orbital: {
     inclinationDegrees: number | null;
+    semiMajorAxisAU: number | null;
+    eccentricity: number | null;
+    orbitalPeriodDays: number | null;
+    perihelionDistanceAU: number | null;
+    aphelionDistanceAU: number | null;
+    ascendingNodeLongitude: number | null;
+    perihelionArgument: number | null;
+    meanAnomaly: number | null;
+    orbitUncertainty: string | null;
+    dataArcDays: number | null;
+    observationsUsed: number | null;
   };
   
   // Close Approach Info
   closeApproach: {
     date: string | null;
     missDistanceKm: number | null;
+  };
+  
+  // Impact Risk Assessment
+  impactRisk: {
+    probability: number | null; // 0-1 scale
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN';
+    nextCloseApproach: {
+      date: string | null;
+      missDistanceKm: number | null;
+    };
+    yearsUntilNextApproach: number | null;
   };
 };
 
@@ -221,6 +243,100 @@ function latestRelevantApproach(
 }
 
 /**
+ * Calculate impact risk assessment based on orbital data and close approaches
+ */
+function calculateImpactRisk({
+  missDistanceKm,
+  orbitUncertainty,
+  dataArcDays,
+  observationsUsed,
+  isPotentiallyHazardous,
+  closeApproachData
+}: {
+  missDistanceKm: number | null;
+  orbitUncertainty: string | null;
+  dataArcDays: number | null;
+  observationsUsed: number | null;
+  isPotentiallyHazardous: boolean;
+  closeApproachData: CloseApproachData[];
+}): ProcessedAsteroidInfo['impactRisk'] {
+  
+  // Find next close approach after current date
+  const now = new Date();
+  const futureApproaches = closeApproachData
+    .filter(ca => new Date(ca.close_approach_date) > now)
+    .sort((a, b) => new Date(a.close_approach_date).getTime() - new Date(b.close_approach_date).getTime());
+  
+  const nextApproach = futureApproaches[0];
+  
+  // Calculate years until next approach
+  let yearsUntilNextApproach: number | null = null;
+  if (nextApproach) {
+    const nextDate = new Date(nextApproach.close_approach_date);
+    yearsUntilNextApproach = (nextDate.getTime() - now.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+  }
+  
+  // Simplified impact probability calculation
+  let probability: number | null = null;
+  let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN' = 'UNKNOWN';
+  
+  if (missDistanceKm !== null) {
+    // Convert miss distance to probability (very simplified model)
+    // Earth's radius is ~6371 km, so we consider anything within 100,000 km as potentially risky
+    
+    if (missDistanceKm < 10000) {
+      // Very close approaches
+      const earthRadius = 6371;
+      const riskFactor = Math.max(0, (earthRadius * 10 - missDistanceKm) / (earthRadius * 10));
+      
+      // Factor in orbit uncertainty
+      let uncertaintyFactor = 1;
+      if (orbitUncertainty) {
+        const uncertainty = parseFloat(orbitUncertainty);
+        if (!isNaN(uncertainty)) {
+          uncertaintyFactor = Math.min(10, uncertainty); // Higher uncertainty = higher risk
+        }
+      }
+      
+      // Factor in observation quality
+      let observationFactor = 1;
+      if (dataArcDays !== null && observationsUsed !== null) {
+        // More observations and longer data arc = lower uncertainty
+        observationFactor = Math.max(0.1, 1 / Math.log10(observationsUsed + 1) / Math.log10(dataArcDays + 1));
+      }
+      
+      probability = Math.min(0.01, riskFactor * uncertaintyFactor * observationFactor * 0.001); // Cap at 1%
+      
+      if (probability > 0.001) riskLevel = 'HIGH';
+      else if (probability > 0.0001) riskLevel = 'MEDIUM';
+      else riskLevel = 'LOW';
+    } else if (missDistanceKm < 100000) {
+      probability = 0.00001; // Very low but non-zero
+      riskLevel = 'LOW';
+    } else {
+      probability = 0;
+      riskLevel = 'LOW';
+    }
+  }
+  
+  // Override with NASA's potentially hazardous classification
+  if (isPotentiallyHazardous && probability === null) {
+    probability = 0.0001; // Default low probability for PHA
+    riskLevel = 'MEDIUM';
+  }
+  
+  return {
+    probability,
+    riskLevel,
+    nextCloseApproach: nextApproach ? {
+      date: nextApproach.close_approach_date,
+      missDistanceKm: parseFloat(nextApproach.miss_distance.kilometers) || null
+    } : { date: null, missDistanceKm: null },
+    yearsUntilNextApproach: yearsUntilNextApproach ? Math.round(yearsUntilNextApproach * 100) / 100 : null
+  };
+}
+
+/**
  * Process raw NASA data into a clean, organized, UI-ready format.
  * Returns data grouped by category for easier frontend consumption.
  * @param detail - Raw NeoDetail from NASA
@@ -244,7 +360,31 @@ export function processAsteroidData(detail: NeoDetail): ProcessedAsteroidInfo {
   const speedKph = latest ? parseNum(latest.relative_velocity.kilometers_per_hour) : null;
   const speedMph = latest ? parseNum(latest.relative_velocity.miles_per_hour) : null;
   const missKm   = latest ? parseNum(latest.miss_distance.kilometers) : null;
-  const inclDeg  = detail.orbital_data?.inclination ? parseNum(detail.orbital_data.inclination) : null;
+  
+  // Extract all orbital elements
+  const orbital = detail.orbital_data;
+  const inclDeg = orbital?.inclination ? parseNum(orbital.inclination) : null;
+  const semiMajorAxis = orbital?.semi_major_axis ? parseNum(orbital.semi_major_axis) : null;
+  const eccentricity = orbital?.eccentricity ? parseNum(orbital.eccentricity) : null;
+  const orbitalPeriod = orbital?.orbital_period ? parseNum(orbital.orbital_period) : null;
+  const perihelionDist = orbital?.perihelion_distance ? parseNum(orbital.perihelion_distance) : null;
+  const aphelionDist = orbital?.aphelion_distance ? parseNum(orbital.aphelion_distance) : null;
+  const ascendingNode = orbital?.ascending_node_longitude ? parseNum(orbital.ascending_node_longitude) : null;
+  const perihelionArg = orbital?.perihelion_argument ? parseNum(orbital.perihelion_argument) : null;
+  const meanAnomaly = orbital?.mean_anomaly ? parseNum(orbital.mean_anomaly) : null;
+  const orbitUncertainty = orbital?.orbit_uncertainty || null;
+  const dataArcDays = orbital?.data_arc_in_days ? parseNum(orbital.data_arc_in_days) : null;
+  const observationsUsed = orbital?.observations_used ? parseNum(orbital.observations_used) : null;
+
+  // Calculate impact risk assessment
+  const impactRisk = calculateImpactRisk({
+    missDistanceKm: missKm,
+    orbitUncertainty,
+    dataArcDays,
+    observationsUsed,
+    isPotentiallyHazardous: detail.is_potentially_hazardous_asteroid,
+    closeApproachData: detail.close_approach_data
+  });
 
 
   // return a list of the stuff. this will be the part that shows the info of a specific asteriods
@@ -278,12 +418,25 @@ export function processAsteroidData(detail: NeoDetail): ProcessedAsteroidInfo {
     
     orbital: {
       inclinationDegrees: inclDeg !== null ? round2(inclDeg) : null,
+      semiMajorAxisAU: semiMajorAxis !== null ? round2(semiMajorAxis) : null,
+      eccentricity: eccentricity !== null ? round2(eccentricity) : null,
+      orbitalPeriodDays: orbitalPeriod !== null ? round2(orbitalPeriod) : null,
+      perihelionDistanceAU: perihelionDist !== null ? round2(perihelionDist) : null,
+      aphelionDistanceAU: aphelionDist !== null ? round2(aphelionDist) : null,
+      ascendingNodeLongitude: ascendingNode !== null ? round2(ascendingNode) : null,
+      perihelionArgument: perihelionArg !== null ? round2(perihelionArg) : null,
+      meanAnomaly: meanAnomaly !== null ? round2(meanAnomaly) : null,
+      orbitUncertainty: orbitUncertainty,
+      dataArcDays: dataArcDays !== null ? round2(dataArcDays) : null,
+      observationsUsed: observationsUsed !== null ? round2(observationsUsed) : null,
     },
     
     closeApproach: {
       date: latest ? latest.close_approach_date : null,
       missDistanceKm: missKm !== null ? round2(missKm) : null,
     },
+    
+    impactRisk: impactRisk,
   };
 }
 

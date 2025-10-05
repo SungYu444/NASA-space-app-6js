@@ -34,7 +34,15 @@ export default function ControlPanel() {
   const dim = locked ? 0.5 : 1
 
   return (
-    <div className="panel control" style={{ width: 380 }}>
+    <div 
+      className="panel control" 
+      style={{ 
+        pointerEvents: 'auto',
+        zIndex: 10
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Preset picker + Hit */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginBottom: 12 }}>
         <select
