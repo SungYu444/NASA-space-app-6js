@@ -43,13 +43,14 @@ export default function ControlPanel() {
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Preset picker + Hit */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginBottom: 12 }}>
+      {/* Preset picker */}
+      <div style={{ marginBottom: 12 }}>
         <select
           value={s.selectedPresetId}
           onChange={(e) => s.selectPreset(e.target.value)}
           disabled={locked}
           style={{
+            width: '100%',
             padding: '8px 10px',
             borderRadius: 8,
             background: 'rgba(255,255,255,.06)',
@@ -62,14 +63,6 @@ export default function ControlPanel() {
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
-        <button
-          className="btn"
-          onClick={() => s.hit()}
-          disabled={locked}
-          style={{ opacity: dim }}
-        >
-          Hit
-        </button>
       </div>
 
       {/* Start/Pause + Reset — always enabled */}
@@ -97,7 +90,7 @@ export default function ControlPanel() {
             opacity: 1
           }}
         >
-          📊 Show Impact Analysis
+          Show Impact Analysis
         </button>
       </div>
 
