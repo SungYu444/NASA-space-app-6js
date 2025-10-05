@@ -46,6 +46,24 @@ export default function ControlPanel(){
         <button className="btn" onClick={()=>s.reset()}>Reset</button>
       </div>
 
+      {/* Impact Analysis Button */}
+      <div style={{marginBottom:12}}>
+        <button 
+          className="cta" 
+          onClick={()=>s.showImpactAnalysis()}
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            background: 'linear-gradient(180deg, rgba(102, 224, 255, 0.15), rgba(102, 224, 255, 0.05))',
+            borderColor: '#66e0ff',
+            fontSize: '14px',
+            fontWeight: '600'
+          }}
+        >
+          📊 Show Impact Analysis
+        </button>
+      </div>
+
       {/* Size */}
       <div className="row"><span className="label">Asteroid Size (m)</span><span className="value">{s.size.toFixed(0)}</span></div>
       <input type="range" min={10} max={1000} step={1} value={s.size} onChange={e=>s.setSize(+e.target.value)} />

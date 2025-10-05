@@ -60,6 +60,10 @@ type SimState = {
   // derived display info
   readouts: Readouts
 
+  // impact map state
+  hasImpacted: boolean
+  showImpactMap: boolean
+
   /* Core actions */
   tick: (dt: number) => void
   start: () => void
@@ -81,6 +85,8 @@ type SimState = {
   setMitigation: (v: Mitigation) => void
   setMitigationPower: (v: number) => void
   setLeadTime: (v: number) => void
+  setShowImpactMap: (v: boolean) => void
+  showImpactAnalysis: () => void
 
   /* legacy */
   toggleRun: () => void
@@ -141,6 +147,8 @@ export const useSimStore = create<SimState>((set, get) => {
     ],
     selectedPresetId: 'small',
     readouts: { speed: 0, size: 0, density: 0, eta: 0, energyTNT: 0, craterKm: 0 },
+    hasImpacted: false,
+    showImpactMap: false,
   }
 
   // Calculate initial impact position
@@ -162,16 +170,32 @@ export const useSimStore = create<SimState>((set, get) => {
     ...get(),
 
     tick: (dt) => {
-      const { running, time, duration } = get()
-      if (!running) return
+      const { running, time, duration, showImpactMap } = get()
+      // Don't advance time if impact map is showing - freeze the simulation
+      if (!running || showImpactMap) return
+      
       const t = Math.min(duration, time + dt)
-      set({ time: t })
+      const newHasImpacted = t >= duration
+      set({ 
+        time: t, 
+        hasImpacted: newHasImpacted
+      })
       recalcHazards()
     },
 
-    start: () => set({ running: true }),
-    pause: () => set({ running: false }),
-    reset: () => set({ running: false, time: 0 }),
+    start: () => {
+      const { showImpactMap } = get()
+      // Don't allow starting if impact map is showing
+      if (showImpactMap) return
+      set({ running: true })
+    },
+    pause: () => {
+      const { showImpactMap } = get()
+      // Don't allow pausing if impact map is showing
+      if (showImpactMap) return
+      set({ running: false })
+    },
+    reset: () => set({ running: false, time: 0, hasImpacted: false, showImpactMap: false }),
 
     selectPreset: (id) => {
       const p = get().presets.find(p => p.id === id)
@@ -200,8 +224,15 @@ export const useSimStore = create<SimState>((set, get) => {
     setMitigation: (v) => set({ mitigation: v }),
     setMitigationPower: (v) => set({ mitigationPower: v }),
     setLeadTime: (v) => set({ leadTime: v }),
+    setShowImpactMap: (v) => set({ showImpactMap: v }),
+    showImpactAnalysis: () => set({ showImpactMap: true }),
 
-    toggleRun: () => set({ running: !get().running }),
+    toggleRun: () => {
+      const { running, showImpactMap } = get()
+      // Don't allow toggling if impact map is showing
+      if (showImpactMap) return
+      set({ running: !running })
+    },
 
     setParam: (key, value) => {
       switch (key) {
