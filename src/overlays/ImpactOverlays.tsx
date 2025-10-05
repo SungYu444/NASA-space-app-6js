@@ -3,13 +3,13 @@ import { useMemo } from 'react'
 import { useSimStore } from '../state/useSimStore'
 import { latLonToVector3 } from '../lib/kinematics'
 
-function CircleOverlay({ 
-  lat, 
-  lon, 
-  radiusKm, 
-  color, 
-  altitude = 1.002 
-}: { 
+function CircleOverlay({
+  lat,
+  lon,
+  radiusKm,
+  color,
+  altitude = 1.002
+}: {
   lat: number
   lon: number
   radiusKm: number
@@ -32,17 +32,36 @@ function CircleOverlay({
     const MAX_RADIUS_KM = 3000 // Maximum 3000km radius
     const cappedRadiusKm = Math.min(radiusKm, MAX_RADIUS_KM)
     
+    // Convert to radians for spherical trigonometry
+    const latRad = lat * Math.PI / 180
+    const lonRad = lon * Math.PI / 180
+    
+    // Angular radius calculation - convert to radians properly
     const angle = (cappedRadiusKm / earthRadiusKm) * size / 15
+    const angularRadius = angle * Math.PI / 180  // Convert degrees to radians for spherical trig
     
     for (let i = 0; i <= segments; i++) {
-      const theta = (i / segments) * Math.PI * 2
-      const dLat = angle * Math.cos(theta)
-      const dLon = angle * Math.sin(theta)
-      arr.push(latLonToVector3(lat + dLat, lon + dLon, altitude))
+      const bearing = (i / segments) * Math.PI * 2
+      
+      // Use proper spherical trigonometry to handle poles correctly
+      const newLatRad = Math.asin(
+        Math.sin(latRad) * Math.cos(angularRadius) +
+        Math.cos(latRad) * Math.sin(angularRadius) * Math.cos(bearing)
+      )
+      
+      const newLonRad = lonRad + Math.atan2(
+        Math.sin(bearing) * Math.sin(angularRadius) * Math.cos(latRad),
+        Math.cos(angularRadius) - Math.sin(latRad) * Math.sin(newLatRad)
+      )
+      
+      const newLat = newLatRad * 180 / Math.PI
+      const newLon = newLonRad * 180 / Math.PI
+      
+      arr.push(latLonToVector3(newLat, newLon, altitude))
     }
     
     return arr
-  }, [lat, lon, radiusKm, altitude])
+  }, [lat, lon, radiusKm, altitude, size])
   
   // Don't render if no valid points
   if (pts.length === 0) {
@@ -52,11 +71,11 @@ function CircleOverlay({
   return (
     <line>
       <bufferGeometry>
-        <bufferAttribute 
-          attach="attributes-position" 
-          count={pts.length} 
-          array={new Float32Array(pts.flatMap(p => [p.x, p.y, p.z]))} 
-          itemSize={3} 
+        <bufferAttribute
+          attach="attributes-position"
+          count={pts.length}
+          array={new Float32Array(pts.flatMap(p => [p.x, p.y, p.z]))}
+          itemSize={3}
         />
       </bufferGeometry>
       <lineBasicMaterial color={color} linewidth={1.5} />
