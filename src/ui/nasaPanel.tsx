@@ -1,3 +1,4 @@
+
   import React, { useEffect, useState } from 'react';
   import {
     preloadAsteroidListOnLoad,
@@ -95,8 +96,8 @@ export default function AsteroidViewer() {
                style={{
                  padding: '8px 10px',
                  borderRadius: 8,
-                 background: 'rgba(255,255,255,.06)',
-                 color: '#e7edf7',
+                 background: 'rgba(255, 255, 255, 0.96)',
+                 color: '#000000',
                  border: '1px solid rgba(255,255,255,.08)',
                  pointerEvents: 'auto',
                }}
