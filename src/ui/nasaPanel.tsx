@@ -7,12 +7,13 @@
   } from '../Fetching/fetchNasa';
   import { useSimStore } from '../state/useSimStore';
 
-  export default function AsteroidViewer() {
-    const [list, setList] = useState<AsteroidListItem[]>([]);
-    const [selectedId, setSelectedId] = useState<string>(''); // no auto-select
-    const [info, setInfo] = useState<ProcessedAsteroidInfo | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+export default function AsteroidViewer() {
+  const [list, setList] = useState<AsteroidListItem[]>([]);
+  const [selectedId, setSelectedId] = useState<string>(''); // no auto-select
+  const [info, setInfo] = useState<ProcessedAsteroidInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
     
     // Connect to simulation store
     const setNasaAsteroidData = useSimStore(s => s.setNasaAsteroidData);
@@ -55,8 +56,7 @@
         const details = await getAsteroidInfoById(selectedId);
         setInfo(details);
         
-        // Update simulation with NASA data
-        setNasaAsteroidData(details);
+        // Don't automatically integrate - just fetch and display the data
       } catch (err) {
         console.error('Failed to fetch details:', err);
         setError('Failed to fetch asteroid details.');
@@ -70,75 +70,78 @@
          className="Nasa Asteriod data nasa-panel" 
          style={{ 
            pointerEvents: 'auto', // Ensure the panel captures pointer events
-           zIndex: 10 // Ensure it's above the 3D scene
+           zIndex: 10, // Ensure it's above the 3D scene
+           display: 'flex',
+           flexDirection: 'column',
+           height: '100%'
          }}
          onMouseEnter={(e) => e.stopPropagation()}
          onMouseLeave={(e) => e.stopPropagation()}
        >
-         <h2>Today's Asteroid Near Earth</h2>
+         {/* Fixed Header */}
+         <div style={{ flexShrink: 0, marginBottom: 12 }}>
+           <h2 style={{ margin: '0 0 12px 0' }}>Today's Asteroid Near Earth</h2>
 
-         <div 
-           style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginBottom: 6 }}
-           onMouseDown={(e) => e.stopPropagation()}
-           onClick={(e) => e.stopPropagation()}
-         >
-           <select
-             value={selectedId}
-             onChange={(e) => setSelectedId(e.target.value)}
-             disabled={loading || list.length === 0}
-             // size controls how many rows are visible when expanded; leave native expand via click
-             size={1}
-             style={{
-               padding: '8px 10px',
-               borderRadius: 8,
-               background: 'rgba(255,255,255,.06)',
-               color: '#e7edf7',
-               border: '1px solid rgba(255,255,255,.08)',
-               maxHeight: 592,            // allow more items without overflowing layout
-               overflowY: 'auto',         // scroll if many items
-               pointerEvents: 'auto',
-             }}
+           <div 
+             style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginBottom: 6 }}
              onMouseDown={(e) => e.stopPropagation()}
              onClick={(e) => e.stopPropagation()}
            >
-            <option value="" disabled>
-              {loading ? 'Loading…' : list.length ? 'Select an asteroid…' : 'No asteroids found'}
-            </option>
-            {list.map((item) => (
-              <option key={item.id} value={item.id} title={item.name}>
-                {item.name}
+             <select
+               value={selectedId}
+               onChange={(e) => setSelectedId(e.target.value)}
+               disabled={loading || list.length === 0}
+               size={1}
+               style={{
+                 padding: '8px 10px',
+                 borderRadius: 8,
+                 background: 'rgba(255,255,255,.06)',
+                 color: '#e7edf7',
+                 border: '1px solid rgba(255,255,255,.08)',
+                 pointerEvents: 'auto',
+               }}
+               onMouseDown={(e) => e.stopPropagation()}
+               onClick={(e) => e.stopPropagation()}
+             >
+              <option value="" disabled>
+                {loading ? 'Loading…' : list.length ? 'Select an asteroid…' : 'No asteroids found'}
               </option>
-            ))}
-          </select>
+              {list.map((item) => (
+                <option key={item.id} value={item.id} title={item.name}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
 
-           <button 
-             className="btn" 
-             onClick={onSearch} 
-             disabled={loading || !selectedId}
-             onMouseDown={(e) => e.stopPropagation()}
-           >
-             {loading ? 'Loading...' : 'Search'}
-           </button>
-        </div>
-
-        {error && (
-          <div style={{ color: '#ff8585', marginBottom: 8, fontSize: 20 }}>
-            {error}
+             <button 
+               className="btn" 
+               onClick={onSearch} 
+               disabled={loading || !selectedId}
+               onMouseDown={(e) => e.stopPropagation()}
+             >
+               {loading ? 'Loading...' : 'Search'}
+             </button>
           </div>
-        )}
 
-         {/* Display asteroid details */}
+          {error && (
+            <div style={{ color: '#ff8585', marginBottom: 8, fontSize: 20 }}>
+              {error}
+            </div>
+          )}
+         </div>
+
+         {/* Scrollable Content */}
          {info && (
            <div
              className="nasa-asteroid-data"
              style={{
+               flex: 1,
                padding: 12,
                borderRadius: 8,
                background: 'rgba(255,255,255,.03)',
                border: '1px solid rgba(255,255,255,.06)',
                color: '#e7edf7',
                fontSize: 20,
-               maxHeight: '1200px',
                overflowY: 'auto',
                overflowX: 'hidden',
                paddingBottom: '16px', // Extra padding at bottom for scroll
@@ -227,7 +230,7 @@
                </div>
              )}
             
-             {/* Integration Buttons */}
+             {/* Integration Button */}
              <div 
                style={{ display: 'flex', gap: '8px', marginTop: '8px' }}
                onMouseDown={(e) => e.stopPropagation()}
@@ -236,42 +239,54 @@
                <button
                  onClick={() => {
                    setNasaAsteroidData(info);
-                   alert('Asteroid data integrated! The simulation now uses real NASA data.');
+                   setShowSuccessMessage(true);
+                   setTimeout(() => setShowSuccessMessage(false), 1500);
                  }}
                  style={{
-                   flex: 1,
+                   width: '100%',
                    padding: '8px 12px',
                    background: 'linear-gradient(135deg, #66e0ff, #4dd4ff)',
                    border: '1px solid #66e0ff',
                    borderRadius: '6px',
                    color: '#000',
                    fontWeight: '600',
-                   cursor: 'pointer'
+                   cursor: 'pointer',
+                   fontSize: '20px'
                  }}
                  onMouseDown={(e) => e.stopPropagation()}
                >
-                 🚀 Integrate
-               </button>
-               <button
-                 onClick={() => {
-                   clearNasaData();
-                   alert('NASA data cleared! Using default asteroid.');
-                 }}
-                 style={{
-                   flex: 1,
-                   padding: '8px 12px',
-                   background: 'linear-gradient(135deg, #ff6b6b, #ff5252)',
-                   border: '1px solid #ff6b6b',
-                   borderRadius: '6px',
-                   color: '#fff',
-                   fontWeight: '600',
-                   cursor: 'pointer'
-                 }}
-                 onMouseDown={(e) => e.stopPropagation()}
-               >
-                 🔄 Reset
+                 Apply Parameters
                </button>
              </div>
+          </div>
+        )}
+        
+        {/* Success Message */}
+        {showSuccessMessage && (
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -500%)',
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              color: '#ffffff',
+              padding: '20px 30px',
+              borderRadius: '12px',
+              border: '2px solid #66e0ff',
+              fontSize: '18px',
+              fontWeight: '600',
+              zIndex: 1000,
+              textAlign: 'center',
+              boxShadow: '0 8px 32px rgba(102, 224, 255, 0.3)',
+              backdropFilter: 'blur(10px)',
+              pointerEvents: 'none'
+            }}
+          >
+            Parameters Applied Successfully!
+            <div style={{ fontSize: '14px', marginTop: '8px', opacity: 0.8 }}>
+              Simulation now uses real NASA data
+            </div>
           </div>
         )}
       </div>

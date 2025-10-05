@@ -6,6 +6,19 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useSimStore } from '../state/useSimStore'
 import { latLonToVector3, simplePathAtTime } from '../lib/kinematics'
 
+const isFiniteVec3 = (v: THREE.Vector3) =>
+  Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)
+
+const clampLat = (lat: number) =>
+  Number.isFinite(lat) ? THREE.MathUtils.clamp(lat, -89.999, 89.999) : 0
+
+const normLon = (lon: number) => {
+  if (!Number.isFinite(lon)) return 0
+  // normalize to [-180, 180)
+  let l = ((lon % 360) + 540) % 360 - 180
+  return l
+}
+
 export default function Asteroid() {
   // read sim state
   const time = useSimStore(s => s.time)
@@ -45,6 +58,7 @@ export default function Asteroid() {
   const coreRef = useRef<THREE.Mesh>(null!)
   const glowRef = useRef<THREE.Mesh>(null!)
   const lightRef = useRef<THREE.PointLight>(null!)
+  const lastGoodPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 3)) // safe seed
 
   // 🔥 Shock shell + trail
   const shockRef = useRef<THREE.Mesh>(null!)
@@ -125,8 +139,8 @@ export default function Asteroid() {
         u_time: { value: 0 },
         u_intensity: { value: 0 },
         u_camPos: { value: new THREE.Vector3() },
-        u_hot:  { value: new THREE.Color('#fff2b0') },
-        u_mid:  { value: new THREE.Color('#ff7a2a') },
+        u_hot: { value: new THREE.Color('#fff2b0') },
+        u_mid: { value: new THREE.Color('#ff7a2a') },
         u_cool: { value: new THREE.Color('#ff3200') },
       },
       vertexShader: v,
@@ -173,8 +187,8 @@ export default function Asteroid() {
       uniforms: {
         u_time: { value: 0 },
         u_intensity: { value: 0 },
-        u_hot:  { value: new THREE.Color('#fff2b0') },
-        u_mid:  { value: new THREE.Color('#ff7a2a') },
+        u_hot: { value: new THREE.Color('#fff2b0') },
+        u_mid: { value: new THREE.Color('#ff7a2a') },
         u_cool: { value: new THREE.Color('#ff3200') },
       },
       vertexShader: v,
@@ -203,14 +217,16 @@ export default function Asteroid() {
     const theta = THREE.MathUtils.degToRad(approach)
     const dir = t.clone().multiplyScalar(Math.cos(theta)).addScaledVector(b, Math.sin(theta)).normalize()
     const start = n.clone().multiplyScalar(3.2).addScaledVector(dir, 1.0)
-    const mid   = n.clone().multiplyScalar(2.2).addScaledVector(dir, 0.5)
+    const mid = n.clone().multiplyScalar(2.2).addScaledVector(dir, 0.5)
     const curve = new THREE.QuadraticBezierCurve3(start, mid, end)
 
     const tNorm = Math.min(1, Math.max(0, time / duration))
     const pos = curve.getPoint(tNorm)
     groupRef.current.position.copy(pos)
 
-    const tan = curve.getTangent(tNorm).normalize()
+    let tan = curve.getTangent(tNorm)
+    if (!isFiniteVec3(tan) || tan.lengthSq() === 0) tan.set(0, 0, 1)
+    tan.normalize()
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan)
     groupRef.current.quaternion.copy(q)
 
@@ -261,7 +277,7 @@ export default function Asteroid() {
       if (shockRef.current.visible) {
         shockMatRef.current.uniforms.u_time.value += dt
         shockMatRef.current.uniforms.u_intensity.value = visIntensity
-        ;(shockMatRef.current.uniforms.u_camPos.value as THREE.Vector3).copy(camera.position)
+          ; (shockMatRef.current.uniforms.u_camPos.value as THREE.Vector3).copy(camera.position)
 
         // Wrap grows as flameFactor increases (feels like plasma forming)
         const wrap = 0.11 * (size / 120) * (0.85 + 0.45 * flameFactor) * (1.0 + 0.3 * heat)
@@ -285,11 +301,11 @@ export default function Asteroid() {
         // Length & width ramp with both heat/speed and flameFactor
         const lengthBase = 0.40
         const lengthGain = 0.40 * (speedNorm + heat) // physical contribution
-        const widthBase  = 0.08
-        const widthGain  = 0.10 * (speedNorm + heat)
+        const widthBase = 0.08
+        const widthGain = 0.10 * (speedNorm + heat)
 
         const length = (lengthBase + lengthGain) * (0.3 + 0.7 * flameFactor)
-        const width  = (widthBase  + widthGain ) * (0.3 + 0.7 * flameFactor)
+        const width = (widthBase + widthGain) * (0.3 + 0.7 * flameFactor)
 
         trailRef.current.scale.set(width, length, width)
       }
