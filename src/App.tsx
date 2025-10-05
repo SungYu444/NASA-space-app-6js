@@ -12,6 +12,7 @@ import { useSimStore } from './state/useSimStore'
 import CameraRig from './scene/CameraRig'
 import NasaPanel from './ui/nasaPanel'
 import QuizMode from './modes/QuizMode'
+import Starfield from './scene/Starfield'
 
 export default function App() {
   const mode = useSimStore(s => s.mode)
@@ -24,6 +25,7 @@ export default function App() {
         <Canvas camera={{ position: [0, 0, 4.5], fov: 50 }} shadows>
           <color attach="background" args={['#05070a']} />
           <Suspense fallback={null}>
+            <Starfield />
             <Globe />
             <Effects />
             {mode !== 'story' && <Asteroid />}
