@@ -8,6 +8,7 @@ then run:
 
 npm install three @react-three/fiber @react-three/drei zustand
 
+npm install leaflet react-leaflet@4 @types/leaflet
 
 npm install -D @vitejs/plugin-react
 
