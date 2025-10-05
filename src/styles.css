@@ -28,7 +28,7 @@ body {
 .ui-layer {
   position: absolute;
   inset: 0;
-  pointer-events: auto;
+  pointer-events: none;
 }
 .panel {
   pointer-events: auto;
@@ -38,9 +38,15 @@ body {
   backdrop-filter: blur(12px) saturate(120%);
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
 }
+
+/* Ensure all interactive elements can receive pointer events */
+button, input, select, a, .btn, .cta {
+  pointer-events: auto;
+}
 .topbar {
   position: absolute; left: 24px; right: 24px; top: 16px;
   display: flex; align-items: center; gap: 12px; justify-content: space-between;
+  pointer-events: auto;
 }
 .brand { font-weight: 800; letter-spacing: 0.5px; }
 .mode-switch { display: flex; gap: 8px; }
@@ -85,7 +91,7 @@ select, input[type=number] { width: 100%; }
 .small { font-size: 12px; opacity: 0.8; }
 
 .scrubber { width: 100%; }
-.footer-hint { position:absolute; bottom: 10px; left: 50%; transform: translateX(-50%); opacity:.6; font-size:12px; }
+.footer-hint { position:absolute; bottom: 10px; left: 50%; transform: translateX(-50%); opacity:.6; font-size:12px; pointer-events: none; }
 
 /* Impact Map Styles */
 .impact-map-overlay {
