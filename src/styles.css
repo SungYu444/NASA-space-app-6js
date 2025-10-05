@@ -177,9 +177,10 @@ select, input[type=number] { width: 100%; }
   border-radius: 20px;
   backdrop-filter: blur(16px) saturate(120%);
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  width: 90%;
-  max-width: 800px;
-  max-height: 90vh;
+  width: 98%;
+  max-width: none;
+  height: 98vh;
+  max-height: 98vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -189,13 +190,13 @@ select, input[type=number] { width: 100%; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
+  padding: 24px 32px;
   border-bottom: 1px solid var(--border);
 }
 
 .impact-map-header h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
 }
@@ -216,18 +217,24 @@ select, input[type=number] { width: 100%; }
 }
 
 .impact-map-content {
-  padding: 24px;
+  padding: 32px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
+  grid-template-columns: 3fr 1fr;
+  gap: 40px;
   flex: 1;
   overflow-y: auto;
+}
+
+.map-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .map-section h3,
 .impact-stats h3 {
   margin: 0 0 16px 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--accent);
 }
@@ -236,20 +243,31 @@ select, input[type=number] { width: 100%; }
   background: #0a0f1a;
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   display: flex;
   justify-content: center;
   align-items: center;
+  min-height: 700px;
+  width: 100%;
+  flex: 1;
 }
 
 .apple-map-container {
   position: relative;
   width: 100%;
   height: 100%;
+  min-height: 600px;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid rgba(102, 224, 255, 0.2);
   box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.apple-map-container iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  border-radius: 8px;
 }
 
 .impact-overlay {
@@ -292,7 +310,7 @@ select, input[type=number] { width: 100%; }
   margin-top: 12px;
   display: flex;
   gap: 16px;
-  font-size: 14px;
+  font-size: 20px;
   color: var(--text);
   opacity: 0.8;
 }
@@ -307,7 +325,7 @@ select, input[type=number] { width: 100%; }
 
 .impact-legend h4 {
   margin: 0 0 8px 0;
-  font-size: 14px;
+  font-size: 20px;
   color: var(--text);
   opacity: 0.9;
 }
@@ -322,7 +340,7 @@ select, input[type=number] { width: 100%; }
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 20px;
   color: var(--text);
   opacity: 0.8;
 }
@@ -364,7 +382,7 @@ select, input[type=number] { width: 100%; }
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 20px;
   opacity: 0.7;
   margin-bottom: 8px;
   text-transform: uppercase;
@@ -372,13 +390,13 @@ select, input[type=number] { width: 100%; }
 }
 
 .stat-value {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--accent-2);
 }
 
 .impact-map-footer {
-  padding: 20px 24px;
+  padding: 24px 32px;
   border-top: 1px solid var(--border);
   display: flex;
   justify-content: center;

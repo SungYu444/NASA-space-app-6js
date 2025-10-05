@@ -241,14 +241,18 @@ export const useSimStore = create<SimState>((set, get) => {
       const newHasImpacted = t >= durSafe
 
       let newShakeState = {}
-      if (newHasImpacted && !st.hasImpacted) {
+      // Only shake if impact map is NOT showing
+      if (newHasImpacted && !st.hasImpacted && !showImpactMap) {
         newShakeState = { isShaking: true, shakeIntensity: 1.0, shakeStartTime: performance.now() }
-      } else if (isShaking) {
+      } else if (isShaking && !showImpactMap) {
         const elapsed = (performance.now() - shakeStartTime) / 1000
         const total = 3.0
         newShakeState = elapsed >= total
           ? { isShaking: false, shakeIntensity: 0 }
           : { shakeIntensity: Math.max(0, 1 - (elapsed / total) ** 2) }
+      } else if (showImpactMap && isShaking) {
+        // If impact map is showing, immediately stop shaking
+        newShakeState = { isShaking: false, shakeIntensity: 0 }
       }
 
       set({ time: t, hasImpacted: newHasImpacted, ...newShakeState })
