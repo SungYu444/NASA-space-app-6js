@@ -70,75 +70,78 @@ export default function AsteroidViewer() {
          className="Nasa Asteriod data nasa-panel" 
          style={{ 
            pointerEvents: 'auto', // Ensure the panel captures pointer events
-           zIndex: 10 // Ensure it's above the 3D scene
+           zIndex: 10, // Ensure it's above the 3D scene
+           display: 'flex',
+           flexDirection: 'column',
+           height: '100%'
          }}
          onMouseEnter={(e) => e.stopPropagation()}
          onMouseLeave={(e) => e.stopPropagation()}
        >
-         <h2>Today's Asteroid Near Earth</h2>
+         {/* Fixed Header */}
+         <div style={{ flexShrink: 0, marginBottom: 12 }}>
+           <h2 style={{ margin: '0 0 12px 0' }}>Today's Asteroid Near Earth</h2>
 
-         <div 
-           style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginBottom: 6 }}
-           onMouseDown={(e) => e.stopPropagation()}
-           onClick={(e) => e.stopPropagation()}
-         >
-           <select
-             value={selectedId}
-             onChange={(e) => setSelectedId(e.target.value)}
-             disabled={loading || list.length === 0}
-             // size controls how many rows are visible when expanded; leave native expand via click
-             size={1}
-             style={{
-               padding: '8px 10px',
-               borderRadius: 8,
-               background: 'rgba(255,255,255,.06)',
-               color: '#e7edf7',
-               border: '1px solid rgba(255,255,255,.08)',
-               maxHeight: 592,            // allow more items without overflowing layout
-               overflowY: 'auto',         // scroll if many items
-               pointerEvents: 'auto',
-             }}
+           <div 
+             style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginBottom: 6 }}
              onMouseDown={(e) => e.stopPropagation()}
              onClick={(e) => e.stopPropagation()}
            >
-            <option value="" disabled>
-              {loading ? 'Loading…' : list.length ? 'Select an asteroid…' : 'No asteroids found'}
-            </option>
-            {list.map((item) => (
-              <option key={item.id} value={item.id} title={item.name}>
-                {item.name}
+             <select
+               value={selectedId}
+               onChange={(e) => setSelectedId(e.target.value)}
+               disabled={loading || list.length === 0}
+               size={1}
+               style={{
+                 padding: '8px 10px',
+                 borderRadius: 8,
+                 background: 'rgba(255,255,255,.06)',
+                 color: '#e7edf7',
+                 border: '1px solid rgba(255,255,255,.08)',
+                 pointerEvents: 'auto',
+               }}
+               onMouseDown={(e) => e.stopPropagation()}
+               onClick={(e) => e.stopPropagation()}
+             >
+              <option value="" disabled>
+                {loading ? 'Loading…' : list.length ? 'Select an asteroid…' : 'No asteroids found'}
               </option>
-            ))}
-          </select>
+              {list.map((item) => (
+                <option key={item.id} value={item.id} title={item.name}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
 
-           <button 
-             className="btn" 
-             onClick={onSearch} 
-             disabled={loading || !selectedId}
-             onMouseDown={(e) => e.stopPropagation()}
-           >
-             {loading ? 'Loading...' : 'Search'}
-           </button>
-        </div>
-
-        {error && (
-          <div style={{ color: '#ff8585', marginBottom: 8, fontSize: 20 }}>
-            {error}
+             <button 
+               className="btn" 
+               onClick={onSearch} 
+               disabled={loading || !selectedId}
+               onMouseDown={(e) => e.stopPropagation()}
+             >
+               {loading ? 'Loading...' : 'Search'}
+             </button>
           </div>
-        )}
 
-         {/* Display asteroid details */}
+          {error && (
+            <div style={{ color: '#ff8585', marginBottom: 8, fontSize: 20 }}>
+              {error}
+            </div>
+          )}
+         </div>
+
+         {/* Scrollable Content */}
          {info && (
            <div
              className="nasa-asteroid-data"
              style={{
+               flex: 1,
                padding: 12,
                borderRadius: 8,
                background: 'rgba(255,255,255,.03)',
                border: '1px solid rgba(255,255,255,.06)',
                color: '#e7edf7',
                fontSize: 20,
-               maxHeight: '1200px',
                overflowY: 'auto',
                overflowX: 'hidden',
                paddingBottom: '16px', // Extra padding at bottom for scroll

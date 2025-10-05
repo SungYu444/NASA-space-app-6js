@@ -79,9 +79,9 @@ button, input, select, a, .btn, .cta {
 .nasa-panel {
   position: absolute;
   right: 24px;     /* keeps it anchored to the right edge */
-  top: 24px;       /* positioned at the very top */
+  top: 80px;       /* positioned below the topbar */
   width: 380px;    /* standard width */
-  max-height: calc(100vh - 48px); /* adjust max height to account for top position */
+  max-height: calc(100vh - 104px); /* adjust max height to account for top position */
   overflow-y: auto; /* scroll if the asteroid details are long */
   padding: 14px;
 }
