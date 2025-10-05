@@ -57,14 +57,31 @@ button, input, select, a, .btn, .cta {
 .mode-switch button.active { outline: 2px solid var(--accent); }
 .right-box { display:flex; align-items:center; gap:10px; }
 
-.control-panel { position: absolute; left: 24px; bottom: 24px; width: 380px; padding: 14px; }
+.panel.control { 
+  position: absolute !important; 
+  left: 24px !important; 
+  top: 24px !important; 
+  width: 380px !important; 
+  min-width: 380px !important;
+  max-width: 380px !important;
+  padding: 14px !important; 
+  box-sizing: border-box !important;
+}
 .mitigation-panel { position: absolute; right: 24px; bottom: 24px; width: 380px; padding: 14px; }
 .stat-panel {
   position: absolute;
+  left: 24px;      /* moves it to the left edge */
+  bottom: 24px;    /* moves it to the bottom */
+  width: 380px;    /* standard width for stats */
+  padding: 14px;
+}
+
+.nasa-panel {
+  position: absolute;
   right: 24px;     /* keeps it anchored to the right edge */
-  top: 72px;       /* moves it just below the top bar */
-  width: 380px;    /* increase width so it fits your info content */
-  max-height: 80vh; /* optional: prevent it from growing too tall */
+  top: 24px;       /* positioned at the very top */
+  width: 380px;    /* standard width */
+  max-height: calc(100vh - 48px); /* adjust max height to account for top position */
   overflow-y: auto; /* scroll if the asteroid details are long */
   padding: 14px;
 }
@@ -99,6 +116,47 @@ select, input[type=number] { width: 100%; }
 
 .scrubber { width: 100%; }
 .footer-hint { position:absolute; bottom: 10px; left: 50%; transform: translateX(-50%); opacity:.6; font-size:12px; pointer-events: none; }
+
+/* Scrollable asteroid data styling */
+.nasa-asteroid-data {
+  position: relative;
+}
+
+.nasa-asteroid-data::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nasa-asteroid-data::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+}
+
+.nasa-asteroid-data::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.3);
+  border-radius: 3px;
+}
+
+.nasa-asteroid-data::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.5);
+}
+
+/* Add a subtle fade at the bottom to indicate scrollable content */
+.nasa-asteroid-data::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(transparent, rgba(255,255,255,0.03));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.nasa-asteroid-data:hover::after {
+  opacity: 1;
+}
 
 /* Impact Map Styles */
 .impact-map-overlay {
