@@ -37,6 +37,8 @@ type SimState = {
   duration: number
   running: boolean
 
+  useTargetImpact: boolean
+
   size: number
   speed: number
   density: number
@@ -48,7 +50,7 @@ type SimState = {
 
   impactLat: number
   impactLon: number
-  
+
   // User-selected target location
   targetLat: number
   targetLon: number
@@ -67,7 +69,7 @@ type SimState = {
   // impact map state
   hasImpacted: boolean
   showImpactMap: boolean
-  
+
   // impact shake state
   isShaking: boolean
   shakeIntensity: number
@@ -98,6 +100,7 @@ type SimState = {
   setShowImpactMap: (v: boolean) => void
   showImpactAnalysis: () => void
   startImpactShake: () => void
+  clearTargetImpact: () => void
 
   /* legacy */
   toggleRun: () => void
@@ -165,9 +168,10 @@ export const useSimStore = create<SimState>((set, get) => {
     isShaking: false,
     shakeIntensity: 0,
     shakeStartTime: 0,
+    useTargetImpact: false,
   }
 
-  
+
   // Calculate initial impact position
   const initialImpact = simplePathAtTime({
     time: base.duration,
@@ -190,10 +194,10 @@ export const useSimStore = create<SimState>((set, get) => {
       const { running, time, duration, showImpactMap, isShaking, shakeStartTime } = get()
       // Don't advance time if impact map is showing - freeze the simulation
       if (!running || showImpactMap) return
-      
+
       const t = Math.min(duration, time + dt)
       const newHasImpacted = t >= duration
-      
+
       // Handle impact shake
       let newShakeState = {}
       if (newHasImpacted && !get().hasImpacted) {
@@ -207,7 +211,7 @@ export const useSimStore = create<SimState>((set, get) => {
         // Update shake intensity over time
         const shakeElapsed = (performance.now() - shakeStartTime) / 1000 // seconds
         const shakeDuration = 3.0 // 3 seconds total
-        
+
         if (shakeElapsed >= shakeDuration) {
           // Shake is over
           newShakeState = {
@@ -223,9 +227,9 @@ export const useSimStore = create<SimState>((set, get) => {
           }
         }
       }
-      
-      set({ 
-        time: t, 
+
+      set({
+        time: t,
         hasImpacted: newHasImpacted,
         ...newShakeState
       })
@@ -244,7 +248,13 @@ export const useSimStore = create<SimState>((set, get) => {
       if (showImpactMap) return
       set({ running: false })
     },
-    reset: () => set({ running: false, time: 0, hasImpacted: false, showImpactMap: false }),
+    reset: () => set({
+      running: false,
+      time: 0,
+      hasImpacted: false,
+      showImpactMap: false,
+      useTargetImpact: false,      // <— clear on reset
+    }),
 
     selectPreset: (id) => {
       const p = get().presets.find(p => p.id === id)
@@ -259,7 +269,12 @@ export const useSimStore = create<SimState>((set, get) => {
     },
 
     setImpactLatLon: (lat, lon) => set({ impactLat: lat, impactLon: lon }),
-    setTargetLatLon: (lat, lon) => set({ targetLat: lat, targetLon: lon }),
+    setTargetLatLon: (lat, lon) => set({
+      targetLat: lat,
+      targetLon: lon,
+      useTargetImpact: true,
+    }),
+    clearTargetImpact: () => set({ useTargetImpact: false }),
     hit: () => set({ time: 0, running: true }),
     setMode: (m) => set({ mode: m }),
 
@@ -276,10 +291,10 @@ export const useSimStore = create<SimState>((set, get) => {
     setLeadTime: (v) => set({ leadTime: v }),
     setShowImpactMap: (v) => set({ showImpactMap: v }),
     showImpactAnalysis: () => set({ showImpactMap: true }),
-    startImpactShake: () => set({ 
-      isShaking: true, 
-      shakeIntensity: 1.0, 
-      shakeStartTime: performance.now() 
+    startImpactShake: () => set({
+      isShaking: true,
+      shakeIntensity: 1.0,
+      shakeStartTime: performance.now()
     }),
 
     toggleRun: () => {
