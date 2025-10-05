@@ -1,12 +1,17 @@
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useEffect, useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useSimStore } from '../state/useSimStore'
+import { vector3ToLatLon } from '../lib/kinematics'
 
 export default function Globe() {
   const gRef = useRef<THREE.Mesh>(null!)
   const [map, setMap] = useState<THREE.Texture | null>(null)
   const [spec, setSpec] = useState<THREE.Texture | null>(null)
+  
+  const setTargetLatLon = useSimStore(s => s.setTargetLatLon)
+  const { raycaster, camera, pointer } = useThree()
 
   // Try local textures first; if missing, fall back to CDN.
   useEffect(() => {
@@ -53,9 +58,34 @@ export default function Globe() {
     )
   }, [])
 
-  useFrame((_s, dt) => {
-    if (gRef.current) gRef.current.rotation.y += dt * 0.01
-  })
+  // Globe stays stagnant - no automatic rotation or shaking
+
+  const handleGlobeClick = (event: any) => {
+    // Prevent default to avoid conflicts with OrbitControls
+    event.stopPropagation()
+    
+    // Update raycaster with current mouse position
+    raycaster.setFromCamera(pointer, camera)
+    
+    // Check for intersection with the globe
+    const intersects = raycaster.intersectObject(gRef.current)
+    
+    if (intersects.length > 0) {
+      const point = intersects[0].point
+      const { lat, lon } = vector3ToLatLon(point)
+      
+      // Set the new target location
+      setTargetLatLon(lat, lon)
+      
+      console.log(`Target set to: ${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`)
+      
+      // Debug: Check if the store was updated
+      setTimeout(() => {
+        const currentState = useSimStore.getState()
+        console.log(`Store target: ${currentState.targetLat.toFixed(2)}°N, ${currentState.targetLon.toFixed(2)}°E`)
+      }, 100)
+    }
+  }
 
   const material = map
     ? (
@@ -102,7 +132,7 @@ return (
     <pointLight position={[0, 0, -6]} intensity={0.3} color="#88ccff" />
 
     {/* --- Earth mesh --- */}
-    <mesh ref={gRef} castShadow receiveShadow>
+    <mesh ref={gRef} castShadow receiveShadow onClick={handleGlobeClick}>
       <sphereGeometry args={[1, 128, 128]} />
       {material}
     </mesh>

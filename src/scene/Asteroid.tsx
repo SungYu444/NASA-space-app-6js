@@ -15,7 +15,13 @@ export default function Asteroid(){
   const mitigation = useSimStore(s=>s.mitigation)
   const mitigationPower = useSimStore(s=>s.mitigationPower)
   const leadTime = useSimStore(s=>s.leadTime)
+  const targetLat = useSimStore(s=>s.targetLat)
+  const targetLon = useSimStore(s=>s.targetLon)
   const setImpactLatLon = useSimStore(s=>s.setImpactLatLon)
+  const { isShaking, shakeIntensity } = useSimStore(s => ({
+    isShaking: s.isShaking,
+    shakeIntensity: s.shakeIntensity
+  }))
 
   // refs
   const groupRef = useRef<THREE.Group>(null!)
@@ -89,9 +95,9 @@ export default function Asteroid(){
       lightRef.current.distance  = THREE.MathUtils.lerp(0.0, 3.5, heat)
     }
 
-    // subtle camera micro-shake near atmosphere
-    const shake = heat > 0.6 ? (heat - 0.6) * 0.02 : 0
-    if (shake > 0){
+    // Camera shake on impact - limited to 3 seconds
+    if (isShaking && shakeIntensity > 0) {
+      const shake = shakeIntensity * 0.02
       camera.position.x += (Math.random()-0.5) * shake
       camera.position.y += (Math.random()-0.5) * shake
     }
