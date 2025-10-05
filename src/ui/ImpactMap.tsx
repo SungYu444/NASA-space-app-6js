@@ -43,6 +43,11 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
 
   const { craterKm, energyTNT, speed, size } = readouts
 
+<<<<<<< HEAD
+=======
+<<<<<<< Updated upstream
+=======
+>>>>>>> 91df55fd87770d07b2b23b1e9a92057f26afcc50
   // Environmental effects state
   const [elevation, setElevation] = useState<number | null>(null)
   const [terrainType, setTerrainType] = useState<string>('Unknown')
@@ -76,7 +81,11 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
   }, [impactLat, impactLon])
 
   // Analyze environmental effects based on elevation and impact energy
+<<<<<<< HEAD
   const analyzeEnvironmentalEffects = (elev: number) => {
+=======
+    const analyzeEnvironmentalEffects = (elev: number) => {
+>>>>>>> 91df55fd87770d07b2b23b1e9a92057f26afcc50
     const effects: string[] = []
     
     // Determine terrain type
@@ -147,6 +156,10 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
     setEnvironmentalEffects(effects)
   }
 
+<<<<<<< HEAD
+=======
+>>>>>>> Stashed changes
+>>>>>>> 91df55fd87770d07b2b23b1e9a92057f26afcc50
   // Calculate accurate impact zone sizes based on meteorite properties
   // Using scientific formulas for impact effects
   
