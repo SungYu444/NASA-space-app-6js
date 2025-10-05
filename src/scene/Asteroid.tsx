@@ -6,6 +6,8 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useSimStore } from '../state/useSimStore'
 import { latLonToVector3, simplePathAtTime } from '../lib/kinematics'
 
+const VISUAL_SCALE = 0.2 // <-- 1/5 size
+
 const isFiniteVec3 = (v: THREE.Vector3) =>
   Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)
 
@@ -86,7 +88,6 @@ export default function Asteroid() {
     }
   `
 
-  // shock shell material (wrap-around flame at the head)
   const shockMaterial = useMemo(() => {
     const v = `
       varying vec3 vWorldPos;
@@ -129,8 +130,8 @@ export default function Asteroid() {
         u_time: { value: 0 },
         u_intensity: { value: 0 },
         u_camPos: { value: new THREE.Vector3() },
-        u_hot:  { value: new THREE.Color('#fff2b0') },
-        u_mid:  { value: new THREE.Color('#ff7a2a') },
+        u_hot: { value: new THREE.Color('#fff2b0') },
+        u_mid: { value: new THREE.Color('#ff7a2a') },
         u_cool: { value: new THREE.Color('#ff3200') },
       },
       vertexShader: v,
@@ -162,7 +163,7 @@ export default function Asteroid() {
     const theta = THREE.MathUtils.degToRad(approach)
     const dir = t.clone().multiplyScalar(Math.cos(theta)).addScaledVector(b, Math.sin(theta)).normalize()
     const start = n.clone().multiplyScalar(3.2).addScaledVector(dir, 1.0)
-    const mid   = n.clone().multiplyScalar(2.2).addScaledVector(dir, 0.5)
+    const mid = n.clone().multiplyScalar(2.2).addScaledVector(dir, 0.5)
     const curve = new THREE.QuadraticBezierCurve3(start, mid, end)
 
     const tNorm = Math.min(1, Math.max(0, time / duration))
@@ -188,8 +189,8 @@ export default function Asteroid() {
       coreRef.current.rotation.y += dt * 0.8
     }
 
-    // size scale
-    const sizeScale = size / 120
+    // ---- VISUAL SCALING (1/5 size) ----
+    const sizeScale = (size / 120) * VISUAL_SCALE
 
     // heat/lighting (zero after impact)
     const r = pos.length()
@@ -230,13 +231,13 @@ export default function Asteroid() {
     const physIntensity = THREE.MathUtils.clamp(0.45 * speedNorm + 0.65 * heat, 0, 1)
     const visIntensity = physIntensity * flameFactor
 
-    // shock shell update
+    // shock shell update (scaled via sizeScale)
     if (shockMatRef.current && shockRef.current) {
       shockRef.current.visible = !impacted && flameFactor > 0.01
       if (shockRef.current.visible) {
         shockMatRef.current.uniforms.u_time.value += dt
         shockMatRef.current.uniforms.u_intensity.value = visIntensity
-        ;(shockMatRef.current.uniforms.u_camPos.value as THREE.Vector3).copy(camera.position)
+          ; (shockMatRef.current.uniforms.u_camPos.value as THREE.Vector3).copy(camera.position)
         const wrap = 0.11 * sizeScale * (0.85 + 0.45 * flameFactor) * (1.0 + 0.3 * heat)
         shockRef.current.scale.setScalar(wrap / 0.11)
       }
@@ -249,10 +250,9 @@ export default function Asteroid() {
       camera.position.y += (Math.random() - 0.5) * shake
     }
 
-    // Crater placement/orientation once impacted
-    // Crater radius = asteroid contact radius (same as the core mesh radius)
+    // ---- CRATER SIZE (red circle) scaled 1/5 ----
     const asteroidRadius = 0.06 * sizeScale
-    
+
     if (craterGroupRef.current) {
       if (impacted && impactLatRef.current != null && impactLonRef.current != null) {
         const hit = latLonToVector3(impactLatRef.current, impactLonRef.current, 1.001) // just above surface
@@ -264,9 +264,7 @@ export default function Asteroid() {
         craterGroupRef.current.quaternion.copy(quat)
 
         craterGroupRef.current.visible = true
-
-        // Scale crater to match asteroid contact area
-        craterGroupRef.current.scale.setScalar(asteroidRadius)
+        craterGroupRef.current.scale.setScalar(asteroidRadius) // 1/5 size via sizeScale
       } else {
         craterGroupRef.current.visible = false
       }
@@ -282,10 +280,10 @@ export default function Asteroid() {
     <>
       {/* Asteroid and trail (hidden after impact) */}
       <group ref={groupRef}>
-        {/* history trail only when running; width scales with meteor size */}
+        {/* history trail only when running; width scales with meteor size (1/5) */}
         {running && (
           <Trail
-            width={0.12 * (size / 120)}
+            width={0.12 * (size / 120) * VISUAL_SCALE}
             length={9}
             color="#ffd9a6"
             attenuation={(t) => t}
@@ -293,7 +291,8 @@ export default function Asteroid() {
             <group>
               <pointLight ref={lightRef} color={'#ffb07a'} intensity={0} distance={0} />
               <mesh ref={coreRef} castShadow>
-                <icosahedronGeometry args={[0.06 * (size / 120), 2]} />
+                {/* core radius 1/5 */}
+                <icosahedronGeometry args={[0.06 * (size / 120) * VISUAL_SCALE, 2]} />
                 <meshStandardMaterial
                   map={asteroidTexture || undefined}
                   color={asteroidTexture ? '#ffffff' : '#6a6a6a'}
@@ -303,6 +302,7 @@ export default function Asteroid() {
                   bumpScale={0.005}
                 />
               </mesh>
+              {/* glow shell auto-scales in frame via sizeScale; base geo can stay the same */}
               <mesh ref={glowRef}>
                 <sphereGeometry args={[0.09, 32, 32]} />
                 <meshBasicMaterial
@@ -324,10 +324,9 @@ export default function Asteroid() {
         </mesh>
       </group>
 
-      {/* Crater marker: red disc sized to asteroid contact area */}
+      {/* Crater marker: red disc sized to asteroid contact area (1/5) */}
       <group ref={craterGroupRef} visible={false}>
         <mesh ref={craterMeshRef}>
-          {/* Unit circle; scaled to asteroid radius in the frame loop */}
           <circleGeometry args={[1, 64]} />
           <meshBasicMaterial
             color="#ff0000"
@@ -337,7 +336,6 @@ export default function Asteroid() {
             side={THREE.DoubleSide}
           />
         </mesh>
-        {/* Optional: subtle outer glow ring */}
         <mesh>
           <ringGeometry args={[1.0, 1.15, 64]} />
           <meshBasicMaterial
