@@ -9,18 +9,8 @@ import { latLonToVector3, simplePathAtTime } from '../lib/kinematics'
 const isFiniteVec3 = (v: THREE.Vector3) =>
   Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)
 
-const clampLat = (lat: number) =>
-  Number.isFinite(lat) ? THREE.MathUtils.clamp(lat, -89.999, 89.999) : 0
-
-const normLon = (lon: number) => {
-  if (!Number.isFinite(lon)) return 0
-  // normalize to [-180, 180)
-  let l = ((lon % 360) + 540) % 360 - 180
-  return l
-}
-
 export default function Asteroid() {
-  // read sim state
+  // sim state
   const time = useSimStore(s => s.time)
   const duration = useSimStore(s => s.duration)
   const size = useSimStore(s => s.size)
@@ -31,7 +21,7 @@ export default function Asteroid() {
   const leadTime = useSimStore(s => s.leadTime)
   const running = useSimStore(s => s.running)
 
-  // target override + flag
+  // target
   const targetLat = useSimStore(s => s.targetLat)
   const targetLon = useSimStore(s => s.targetLon)
   const useTargetImpact = useSimStore(s => s.useTargetImpact)
@@ -42,7 +32,7 @@ export default function Asteroid() {
     shakeIntensity: s.shakeIntensity
   }))
 
-  // texture loading
+  // asset
   const [asteroidTexture, setAsteroidTexture] = useState<THREE.Texture | null>(null)
   useEffect(() => {
     const loader = new THREE.TextureLoader()
@@ -58,20 +48,17 @@ export default function Asteroid() {
   const coreRef = useRef<THREE.Mesh>(null!)
   const glowRef = useRef<THREE.Mesh>(null!)
   const lightRef = useRef<THREE.PointLight>(null!)
-  const lastGoodPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 3)) // safe seed
 
-  // 🔥 Shock shell + trail
+  // shock shell
   const shockRef = useRef<THREE.Mesh>(null!)
-  const trailRef = useRef<THREE.Mesh>(null!)
   const shockMatRef = useRef<THREE.ShaderMaterial>(null!)
-  const trailMatRef = useRef<THREE.ShaderMaterial>(null!)
 
   const { camera } = useThree()
 
-  // ===== Flame easing state (0..1) =====
-  const flameFactorRef = useRef(0) // grows when close to Earth, shrinks otherwise
+  // easing for flame visibility near atmosphere
+  const flameFactorRef = useRef(0)
 
-  // ---- SHADERS ----
+  // ---------- SHADERS ----------
   const commonNoise = `
     float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123); }
     float noise(vec2 p){
@@ -86,15 +73,12 @@ export default function Asteroid() {
     float fbm(vec2 p){
       float v = 0.0;
       float a = 0.5;
-      for(int i=0; i<5; i++){
-        v += a * noise(p);
-        p *= 2.0;
-        a *= 0.5;
-      }
+      for(int i=0; i<5; i++){ v += a * noise(p); p *= 2.0; a *= 0.5; }
       return v;
     }
   `
 
+  // shock shell material (wrap-around flame at the head)
   const shockMaterial = useMemo(() => {
     const v = `
       varying vec3 vWorldPos;
@@ -110,11 +94,9 @@ export default function Asteroid() {
       varying vec3 vWorldPos;
       varying vec3 vNormal;
       uniform float u_time;
-      uniform float u_intensity; // includes flameFactor
+      uniform float u_intensity;
       uniform vec3  u_camPos;
-      uniform vec3 u_hot;
-      uniform vec3 u_mid;
-      uniform vec3 u_cool;
+      uniform vec3 u_hot, u_mid, u_cool;
       ${commonNoise}
       void main(){
         vec3 V = normalize(u_camPos - vWorldPos);
@@ -139,56 +121,8 @@ export default function Asteroid() {
         u_time: { value: 0 },
         u_intensity: { value: 0 },
         u_camPos: { value: new THREE.Vector3() },
-        u_hot: { value: new THREE.Color('#fff2b0') },
-        u_mid: { value: new THREE.Color('#ff7a2a') },
-        u_cool: { value: new THREE.Color('#ff3200') },
-      },
-      vertexShader: v,
-      fragmentShader: f,
-    })
-  }, [])
-
-  const trailMaterial = useMemo(() => {
-    const v = `
-      varying vec2 vUv;
-      void main(){
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `
-    const f = `
-      varying vec2 vUv;
-      uniform float u_time;
-      uniform float u_intensity; // includes flameFactor
-      uniform vec3  u_hot;
-      uniform vec3  u_mid;
-      uniform vec3  u_cool;
-      ${commonNoise}
-      void main(){
-        float y = vUv.y;
-        float x = vUv.x - 0.5;
-        float t = u_time * (1.0 + 1.5*u_intensity);
-        float n = fbm(vec2(x*2.0, y*4.0 - t));
-        float edgeX = smoothstep(0.55, 0.05, abs(x));
-        float tip   = smoothstep(0.0, 0.15, y);
-        float tail  = 1.0 - smoothstep(0.85, 1.0, y);
-        float base  = tip * tail;
-        float alpha = (0.3 + 0.7*n) * edgeX * base * (0.6 + 0.4*u_intensity);
-        vec3 col = mix(u_hot, u_mid, smoothstep(0.0, 0.6, y));
-        col = mix(col, u_cool, smoothstep(0.5, 1.0, y));
-        col *= (1.0 + 0.6*u_intensity);
-        gl_FragColor = vec4(col, alpha);
-      }
-    `
-    return new THREE.ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      uniforms: {
-        u_time: { value: 0 },
-        u_intensity: { value: 0 },
-        u_hot: { value: new THREE.Color('#fff2b0') },
-        u_mid: { value: new THREE.Color('#ff7a2a') },
+        u_hot:  { value: new THREE.Color('#fff2b0') },
+        u_mid:  { value: new THREE.Color('#ff7a2a') },
         u_cool: { value: new THREE.Color('#ff3200') },
       },
       vertexShader: v,
@@ -197,9 +131,9 @@ export default function Asteroid() {
   }, [])
 
   useEffect(() => { shockMatRef.current = shockMaterial }, [shockMaterial])
-  useEffect(() => { trailMatRef.current = trailMaterial }, [trailMaterial])
 
   useFrame((_state, dt) => {
+    // path & pose
     const { impactLat, impactLon } = simplePathAtTime({
       time, duration, approachAngleDeg: approach, leadTime,
       mitigation, mitigationPower, targetLat, targetLon,
@@ -207,7 +141,6 @@ export default function Asteroid() {
     })
     setImpactLatLon(impactLat, impactLon)
 
-    // Path outside Earth
     const end = latLonToVector3(impactLat, impactLon, 1.02)
     const n = end.clone().normalize()
     let t = new THREE.Vector3().crossVectors(n, new THREE.Vector3(0, 1, 0))
@@ -217,7 +150,7 @@ export default function Asteroid() {
     const theta = THREE.MathUtils.degToRad(approach)
     const dir = t.clone().multiplyScalar(Math.cos(theta)).addScaledVector(b, Math.sin(theta)).normalize()
     const start = n.clone().multiplyScalar(3.2).addScaledVector(dir, 1.0)
-    const mid = n.clone().multiplyScalar(2.2).addScaledVector(dir, 0.5)
+    const mid   = n.clone().multiplyScalar(2.2).addScaledVector(dir, 0.5)
     const curve = new THREE.QuadraticBezierCurve3(start, mid, end)
 
     const tNorm = Math.min(1, Math.max(0, time / duration))
@@ -236,14 +169,16 @@ export default function Asteroid() {
       coreRef.current.rotation.y += dt * 0.8
     }
 
-    // heat / glow (heat > 0 near atmosphere; based on radius)
+    // size scale
+    const sizeScale = size / 120
+
+    // heat/lighting
     const r = pos.length()
     const heat = THREE.MathUtils.clamp(1 - (r - 1.0) / 0.5, 0, 1)
     const speedNorm = THREE.MathUtils.clamp((speed - 5) / 65, 0, 1)
-    const baseGlowScale = size / 120
+    const baseGlowScale = sizeScale
     const heatGlowScale = 1 + THREE.MathUtils.lerp(0.05, 0.35, heat)
     const glowScale = baseGlowScale * heatGlowScale
-
     if (glowRef.current) {
       glowRef.current.scale.setScalar(glowScale)
       const mat = glowRef.current.material as THREE.MeshBasicMaterial
@@ -254,65 +189,34 @@ export default function Asteroid() {
       lightRef.current.distance = THREE.MathUtils.lerp(0.0, 3.5, heat)
     }
 
-    // ======= Atmosphere gating with smooth "catch-up" =======
+    // atmosphere gating + easing (shock only)
     const beforeImpact = time < duration
     const inAtmosphere = heat > 0.02
-
-    // Ease flameFactor up/down (catch-up feel).
-    // Faster growth as heat increases, slower decay when leaving.
-    const growRate = 1.2 + 1.8 * heat           // up to ~3.0 near surface
-    const decayRate = 2.0                        // fade fairly quickly when leaving
+    const growRate = 1.2 + 1.8 * heat
+    const decayRate = 2.0
     const target = (beforeImpact && inAtmosphere) ? 1 : 0
     const f = flameFactorRef.current
     const rate = target > f ? growRate : decayRate
     flameFactorRef.current = THREE.MathUtils.clamp(f + (target - f) * (1 - Math.exp(-rate * dt)), 0, 1)
     const flameFactor = flameFactorRef.current
 
-    // Composite physical intensity (speed/heat) * visual flameFactor
+    // intensity for shock shell
     const physIntensity = THREE.MathUtils.clamp(0.45 * speedNorm + 0.65 * heat, 0, 1)
     const visIntensity = physIntensity * flameFactor
 
+    // shock shell update
     if (shockMatRef.current && shockRef.current) {
       shockRef.current.visible = flameFactor > 0.01
       if (shockRef.current.visible) {
         shockMatRef.current.uniforms.u_time.value += dt
         shockMatRef.current.uniforms.u_intensity.value = visIntensity
-          ; (shockMatRef.current.uniforms.u_camPos.value as THREE.Vector3).copy(camera.position)
-
-        // Wrap grows as flameFactor increases (feels like plasma forming)
-        const wrap = 0.11 * (size / 120) * (0.85 + 0.45 * flameFactor) * (1.0 + 0.3 * heat)
+        ;(shockMatRef.current.uniforms.u_camPos.value as THREE.Vector3).copy(camera.position)
+        const wrap = 0.11 * sizeScale * (0.85 + 0.45 * flameFactor) * (1.0 + 0.3 * heat)
         shockRef.current.scale.setScalar(wrap / 0.11)
       }
     }
 
-    if (trailMatRef.current && trailRef.current) {
-      const visible = flameFactor > 0.01
-      trailRef.current.visible = visible
-      if (visible) {
-        trailMatRef.current.uniforms.u_time.value += dt
-        trailMatRef.current.uniforms.u_intensity.value = visIntensity
-
-        // Start farther behind and "catch up" as flameFactor grows
-        const backFar = 0.20   // farther when flame just appears
-        const backNear = 0.06  // tight when fully developed
-        const back = THREE.MathUtils.lerp(backFar, backNear, flameFactor)
-        trailRef.current.position.set(0, 0, -back)
-
-        // Length & width ramp with both heat/speed and flameFactor
-        const lengthBase = 0.40
-        const lengthGain = 0.40 * (speedNorm + heat) // physical contribution
-        const widthBase = 0.08
-        const widthGain = 0.10 * (speedNorm + heat)
-
-        const length = (lengthBase + lengthGain) * (0.3 + 0.7 * flameFactor)
-        const width = (widthBase + widthGain) * (0.3 + 0.7 * flameFactor)
-
-        trailRef.current.scale.set(width, length, width)
-      }
-    }
-    // ================================================
-
-    // camera shake on impact
+    // camera shake on impact (unchanged)
     if (isShaking && shakeIntensity > 0) {
       const shake = shakeIntensity * 0.02
       camera.position.x += (Math.random() - 0.5) * shake
@@ -322,14 +226,16 @@ export default function Asteroid() {
 
   return (
     <group ref={groupRef}>
-      {/* Draw the Trail AFTER start so the history line appears only when running */}
+      {/* history trail only when running; width scales with meteor size */}
       {running && (
-        <Trail width={0.12} length={9} color="#ffd9a6" attenuation={(t) => t}>
+        <Trail
+          width={0.12 * (size / 120)}
+          length={9}
+          color="#ffd9a6"
+          attenuation={(t) => t}
+        >
           <group>
-            {/* hot bloom light */}
             <pointLight ref={lightRef} color={'#ffb07a'} intensity={0} distance={0} />
-
-            {/* rock core */}
             <mesh ref={coreRef} castShadow>
               <icosahedronGeometry args={[0.06 * (size / 120), 2]} />
               <meshStandardMaterial
@@ -341,8 +247,6 @@ export default function Asteroid() {
                 bumpScale={0.005}
               />
             </mesh>
-
-            {/* subtle additive glow just at the head */}
             <mesh ref={glowRef}>
               <sphereGeometry args={[0.09, 32, 32]} />
               <meshBasicMaterial
@@ -357,16 +261,10 @@ export default function Asteroid() {
         </Trail>
       )}
 
-      {/* Shock shell that wraps the meteor head */}
+      {/* shock shell only (no cone) */}
       <mesh ref={shockRef}>
         <sphereGeometry args={[0.11, 32, 32]} />
         <primitive object={shockMaterial} attach="material" />
-      </mesh>
-
-      {/* Tapered trail (cone) behind the head (points to -Z) */}
-      <mesh ref={trailRef} rotation={[-Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.0, 1.0, 1.0, 24, 1, true]} />
-        <primitive object={trailMaterial} attach="material" />
       </mesh>
     </group>
   )
