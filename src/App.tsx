@@ -10,6 +10,8 @@ import DefendMode from './modes/DefendMode'
 import StoryMode from './modes/StoryMode'
 import { useSimStore } from './state/useSimStore'
 import CameraRig from './scene/CameraRig'
+import NasaPanel from './ui/nasaPanel'
+
 
 export default function App(){
   const mode = useSimStore(s=>s.mode)
@@ -37,6 +39,7 @@ export default function App(){
         <TopBar />
         <ControlPanel />
         <MitigationPanel />
+        <NasaPanel />
         <StatsPanel />
         {mode==='defend' && <DefendMode />}
         {mode==='story' && <StoryMode />}

@@ -1,7 +1,7 @@
-import 'dotenv/config'
 
-const API_KEY = process.env.NASA_API_KEY ?? 'DEMO_KEY'
-const bse_Url = process.env.BASE_URL ?? 'https://api.nasa.gov/neo/rest/v1'
+
+const API_KEY = import.meta.env.VITE_NASA_API_KEY ?? 'DEMO_KEY';
+const BASE_URL = 'https://api.nasa.gov/neo/rest/v1';
 /*
 object type to save each data
 */
@@ -130,7 +130,7 @@ fetching data from NASA api and put those data into the objects
 */ 
 
 export async function fetchAsteroidList(date: string): Promise<AsteroidListItem[]> {
-  const best_url = `${bse_Url}/feed?start_date=${date}&end_date=${date}&api_key=${API_KEY}`;
+  const best_url = `${BASE_URL}/feed?start_date=${date}&end_date=${date}&api_key=${API_KEY}`;
   
   const response = await fetch(best_url);
   if (!response.ok) {
@@ -155,7 +155,7 @@ export async function fetchAsteroidList(date: string): Promise<AsteroidListItem[
  * @returns Detailed asteroid data
  */
 export async function fetchAsteroidDetails(asteroidId: string): Promise<NeoDetail> {
-  const best_url = `${bse_Url}/neo/${asteroidId}?api_key=${API_KEY}`;
+  const best_url = `${BASE_URL}/neo/${asteroidId}?api_key=${API_KEY}`;
   
   const response = await fetch(best_url);
   if (!response.ok) {
