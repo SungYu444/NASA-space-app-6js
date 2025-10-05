@@ -10,12 +10,25 @@ export function latLonToVector3(lat:number, lon:number, radius=1){
   return new THREE.Vector3(x,y,z)
 }
 
-export function simplePathAtTime({ time, duration, approachAngleDeg, leadTime, mitigation, mitigationPower }:{
-  time:number; duration:number; approachAngleDeg:number; leadTime:number; mitigation:Mitigation; mitigationPower:number;
+export function vector3ToLatLon(vector: THREE.Vector3){
+  const x = vector.x
+  const y = vector.y
+  const z = vector.z
+  
+  // Convert 3D coordinates to spherical coordinates
+  const radius = Math.sqrt(x*x + y*y + z*z)
+  const lat = 90 - (Math.acos(y / radius) * 180 / Math.PI)
+  const lon = (Math.atan2(z, -x) * 180 / Math.PI) - 180
+  
+  return { lat, lon }
+}
+
+export function simplePathAtTime({ time, duration, approachAngleDeg, leadTime, mitigation, mitigationPower, targetLat, targetLon }:{
+  time:number; duration:number; approachAngleDeg:number; leadTime:number; mitigation:Mitigation; mitigationPower:number; targetLat?:number; targetLon?:number;
 }){
-  // pick an arbitrary target (lat,lon) and apply mitigation-induced drift when active
-  const baseLat = 40
-  const baseLon = -100
+  // Use user-selected target or fallback to default
+  const baseLat = targetLat ?? 40
+  const baseLon = targetLon ?? -100
 
   let driftLat = 0
   let driftLon = 0
