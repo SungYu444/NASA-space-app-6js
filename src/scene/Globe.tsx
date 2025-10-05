@@ -9,8 +9,9 @@ export default function Globe() {
   const gRef = useRef<THREE.Mesh>(null!)
   const [map, setMap] = useState<THREE.Texture | null>(null)
   const [spec, setSpec] = useState<THREE.Texture | null>(null)
-  
+
   const setTargetLatLon = useSimStore(s => s.setTargetLatLon)
+  const setStart = useSimStore(s => s.start)
   const { raycaster, camera, pointer } = useThree()
 
   // Try local textures first; if missing, fall back to CDN.
@@ -63,22 +64,22 @@ export default function Globe() {
   const handleGlobeClick = (event: any) => {
     // Prevent default to avoid conflicts with OrbitControls
     event.stopPropagation()
-    
+
     // Update raycaster with current mouse position
     raycaster.setFromCamera(pointer, camera)
-    
+
     // Check for intersection with the globe
     const intersects = raycaster.intersectObject(gRef.current)
-    
+
     if (intersects.length > 0) {
       const point = intersects[0].point
       const { lat, lon } = vector3ToLatLon(point)
-      
+
       // Set the new target location
       setTargetLatLon(lat, lon)
-      
+
       console.log(`Target set to: ${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`)
-      
+
       // Debug: Check if the store was updated
       setTimeout(() => {
         const currentState = useSimStore.getState()
@@ -89,75 +90,75 @@ export default function Globe() {
 
   const material = map
     ? (
-<meshPhongMaterial
-  map={map || undefined}
-  specularMap={spec || undefined}
-  shininess={30}                         // Highlight strength (higher = glossier)
-  specular={new THREE.Color('#66aaff')}  //  Highlight color (try warmer or cooler tones)
-  emissive={new THREE.Color('#224466')}  //  Glow tint for the dark side
-  emissiveIntensity={0.35}               //  Brightness of that glow
-/>
+      <meshPhongMaterial
+        map={map || undefined}
+        specularMap={spec || undefined}
+        shininess={30}                         // Highlight strength (higher = glossier)
+        specular={new THREE.Color('#66aaff')}  //  Highlight color (try warmer or cooler tones)
+        emissive={new THREE.Color('#224466')}  //  Glow tint for the dark side
+        emissiveIntensity={0.35}               //  Brightness of that glow
+      />
 
     )
     : (
       <meshStandardMaterial color="#2b6cff" metalness={0.1} roughness={0.6} />
     )
 
-return (
-    
-  <>
-  <color attach="background" args={['#02050b']} />
+  return (
 
-    {/* --- Lighting Setup --- */}
-    {/* Stronger global ambient light */}
-    <ambientLight intensity={3} />
+    <>
+      <color attach="background" args={['#02050b']} />
 
-    {/* Sunlight / main directional light */}
-    <directionalLight
-      position={[5, 3, 5]}
-      intensity={3}
-      castShadow
-      shadow-mapSize-width={2048}
-      shadow-mapSize-height={2048}
-    />
+      {/* --- Lighting Setup --- */}
+      {/* Stronger global ambient light */}
+      <ambientLight intensity={3} />
 
-    {/* Soft fill light on the opposite side */}
-    <directionalLight
-      position={[-4, -2, -4]}
-      intensity={0.5}
-      color="#4477ff"
-    />
+      {/* Sunlight / main directional light */}
+      <directionalLight
+        position={[5, 3, 5]}
+        intensity={3}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+      />
 
-    {/* Optional subtle backlight for atmosphere */}
-    <pointLight position={[0, 0, -6]} intensity={0.3} color="#88ccff" />
+      {/* Soft fill light on the opposite side */}
+      <directionalLight
+        position={[-4, -2, -4]}
+        intensity={0.5}
+        color="#4477ff"
+      />
 
-    {/* --- Earth mesh --- */}
-    <mesh ref={gRef} castShadow receiveShadow onClick={handleGlobeClick}>
-      <sphereGeometry args={[1, 128, 128]} />
-      {material}
-    </mesh>
+      {/* Optional subtle backlight for atmosphere */}
+      <pointLight position={[0, 0, -6]} intensity={0.3} color="#88ccff" />
 
-    {/* Thin atmosphere shell */}
-    <mesh scale={1.02}>
-    <sphereGeometry args={[1, 64, 64]} />
-    <meshBasicMaterial
-        color="#66ccff"
-        transparent
-        opacity={0.15}
-        side={THREE.BackSide}
-    />
-    </mesh>
+      {/* --- Earth mesh --- */}
+      <mesh ref={gRef} castShadow receiveShadow onClick={handleGlobeClick}>
+        <sphereGeometry args={[1, 128, 128]} />
+        {material}
+      </mesh>
+
+      {/* Thin atmosphere shell */}
+      <mesh scale={1.02}>
+        <sphereGeometry args={[1, 64, 64]} />
+        <meshBasicMaterial
+          color="#66ccff"
+          transparent
+          opacity={0.15}
+          side={THREE.BackSide}
+        />
+      </mesh>
 
 
-    {/* Controls */}
-    <OrbitControls
-      enableDamping
-      dampingFactor={0.08}
-      minDistance={1.6}
-      maxDistance={10}
-      rotateSpeed={0.6}
-    />
-  </>
-)
+      {/* Controls */}
+      <OrbitControls
+        enableDamping
+        dampingFactor={0.08}
+        minDistance={1.6}
+        maxDistance={10}
+        rotateSpeed={0.6}
+      />
+    </>
+  )
 
 }

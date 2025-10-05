@@ -17,10 +17,10 @@ export default function Asteroid() {
   const mitigationPower = useSimStore(s => s.mitigationPower)
   const leadTime = useSimStore(s => s.leadTime)
 
-  // NEW: target + flag that says “use the target as the impact point”
+  // target override + flag
   const targetLat = useSimStore(s => s.targetLat)
   const targetLon = useSimStore(s => s.targetLon)
-  const useTargetImpact = useSimStore(s => s.useTargetImpact) // <-- add in store if not already
+  const useTargetImpact = useSimStore(s => s.useTargetImpact) // ensure this exists in the store
 
   const setImpactLatLon = useSimStore(s => s.setImpactLatLon)
   const { isShaking, shakeIntensity } = useSimStore(s => ({
@@ -48,7 +48,7 @@ export default function Asteroid() {
   const { camera } = useThree()
 
   useFrame((_state, dt) => {
-    // Compute impact point. IMPORTANT: pass target + lock flag so we actually aim there.
+    // Compute impact point (honor target when requested)
     const { impactLat, impactLon } = simplePathAtTime({
       time,
       duration,
@@ -58,33 +58,49 @@ export default function Asteroid() {
       mitigationPower,
       targetLat,
       targetLon,
-      lockToTarget: useTargetImpact, // <-- this is the key bit
+      lockToTarget: useTargetImpact, // key: forces end-point to the clicked location
     })
 
     // Update store for overlays/other systems
     setImpactLatLon(impactLat, impactLon)
 
-    // Build curve each frame with current impact point
-    const tilt = (approach - 45) / 45
-    const start = new THREE.Vector3(-3 + tilt * 0.3, 1.5 + tilt * 0.2, 2.5 - tilt * 0.3)
+    // --- Build a curve that NEVER crosses the Earth ---
+    // End point slightly above the surface
     const end = latLonToVector3(impactLat, impactLon, 1.02)
 
-    // Midpoint puff for a nice arc
-    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5)
-    const midDir = mid.clone().normalize()
-    mid.add(midDir.multiplyScalar(0.8))
-    mid.add(new THREE.Vector3(0.5 + tilt * 0.1, 0.3, -0.2))
+    // Surface normal at end
+    const n = end.clone().normalize()
+
+    // Build an orthonormal basis (t, b) in the tangent plane at 'end'
+    // Start with cross against world-up; fall back if near parallel (poles)
+    let t = new THREE.Vector3().crossVectors(n, new THREE.Vector3(0, 1, 0))
+    if (t.lengthSq() < 1e-6) {
+      t = new THREE.Vector3().crossVectors(n, new THREE.Vector3(1, 0, 0))
+    }
+    t.normalize()
+    const b = new THREE.Vector3().crossVectors(n, t).normalize()
+
+    // Use the approach angle to spin direction around the normal (tangent heading)
+    const theta = THREE.MathUtils.degToRad(approach)
+    const dir = t.clone().multiplyScalar(Math.cos(theta)).addScaledVector(b, Math.sin(theta)).normalize()
+
+    // Choose start and mid strictly outside the sphere (radius > 1)
+    const start = n.clone().multiplyScalar(3.2)   // along normal, safely outside
+      .addScaledVector(dir, 1.0)                  // small lateral offset for nicer arc
+
+    const mid = n.clone().multiplyScalar(2.2)     // control point also outside
+      .addScaledVector(dir, 0.5)
 
     const curve = new THREE.QuadraticBezierCurve3(start, mid, end)
 
     // progress 0..1
-    const t = Math.min(1, Math.max(0, time / duration))
+    const tNorm = Math.min(1, Math.max(0, time / duration))
 
     // position & orientation
-    const pos = curve.getPoint(t)
+    const pos = curve.getPoint(tNorm)
     groupRef.current.position.copy(pos)
 
-    const tan = curve.getTangent(t).normalize()
+    const tan = curve.getTangent(tNorm).normalize()
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan)
     groupRef.current.quaternion.copy(q)
 
@@ -122,9 +138,13 @@ export default function Asteroid() {
 
   return (
     <group ref={groupRef}>
+      {/* Trail records the group's motion each frame and draws a streak */}
       <Trail width={0.12} length={9} color="#ffd9a6" attenuation={(t) => t}>
         <group>
+          {/* hot bloom light */}
           <pointLight ref={lightRef} color={'#ffb07a'} intensity={0} distance={0} />
+
+          {/* rock core */}
           <mesh ref={coreRef} castShadow>
             <icosahedronGeometry args={[0.06 * (size / 120), 2]} />
             <meshStandardMaterial
@@ -136,6 +156,8 @@ export default function Asteroid() {
               bumpScale={0.005}
             />
           </mesh>
+
+          {/* additive glow shell */}
           <mesh ref={glowRef}>
             <sphereGeometry args={[0.09, 32, 32]} />
             <meshBasicMaterial
@@ -146,6 +168,8 @@ export default function Asteroid() {
               blending={THREE.AdditiveBlending}
             />
           </mesh>
+
+          {/* hot sparks behind the head */}
           <Sparkles
             count={24}
             scale={[0.5, 0.5, 1.2]}
