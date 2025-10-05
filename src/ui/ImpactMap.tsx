@@ -210,6 +210,71 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
                     {nasaAsteroidData.orbital.inclinationDegrees?.toFixed(1) || 'N/A'}°
                   </div>
                 </div>
+                <div className="stat-item">
+                  <div className="stat-label">Semi-Major Axis</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>
+                    {nasaAsteroidData.orbital.semiMajorAxisAU?.toFixed(3) || 'N/A'} AU
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Eccentricity</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>
+                    {nasaAsteroidData.orbital.eccentricity?.toFixed(3) || 'N/A'}
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Orbital Period</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>
+                    {nasaAsteroidData.orbital.orbitalPeriodDays?.toFixed(0) || 'N/A'} days
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Perihelion Distance</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>
+                    {nasaAsteroidData.orbital.perihelionDistanceAU?.toFixed(3) || 'N/A'} AU
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Aphelion Distance</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>
+                    {nasaAsteroidData.orbital.aphelionDistanceAU?.toFixed(3) || 'N/A'} AU
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Impact Risk Level</div>
+                  <div className="stat-value" style={{ 
+                    fontSize: '12px',
+                    color: nasaAsteroidData.impactRisk.riskLevel === 'HIGH' ? '#ff6b6b' : 
+                           nasaAsteroidData.impactRisk.riskLevel === 'MEDIUM' ? '#ffa500' : 
+                           nasaAsteroidData.impactRisk.riskLevel === 'LOW' ? '#66ff66' : '#999'
+                  }}>
+                    {nasaAsteroidData.impactRisk.riskLevel}
+                  </div>
+                </div>
+                {nasaAsteroidData.impactRisk.probability !== null && (
+                  <div className="stat-item">
+                    <div className="stat-label">Impact Probability</div>
+                    <div className="stat-value" style={{ fontSize: '12px' }}>
+                      {(nasaAsteroidData.impactRisk.probability * 100).toFixed(6)}%
+                    </div>
+                  </div>
+                )}
+                {nasaAsteroidData.impactRisk.nextCloseApproach.date && (
+                  <div className="stat-item">
+                    <div className="stat-label">Next Approach</div>
+                    <div className="stat-value" style={{ fontSize: '12px' }}>
+                      {nasaAsteroidData.impactRisk.nextCloseApproach.date}
+                    </div>
+                  </div>
+                )}
+                {nasaAsteroidData.impactRisk.yearsUntilNextApproach && (
+                  <div className="stat-item">
+                    <div className="stat-label">Years Until Next</div>
+                    <div className="stat-value" style={{ fontSize: '12px' }}>
+                      {nasaAsteroidData.impactRisk.yearsUntilNextApproach} years
+                    </div>
+                  </div>
+                )}
               </div>
               <div style={{ marginTop: '12px', textAlign: 'center' }}>
                 <a 
