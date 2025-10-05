@@ -64,34 +64,13 @@ function TopBar(){
 
   return (
     <div className="topbar">
-      <div className="panel" style={{padding:'10px 14px'}}>
         <span className="brand">
-          ASTEROID DEFENDER
           {showImpactMap && <span style={{color: '#ff6aa2', marginLeft: '8px'}}>• IMPACT ANALYSIS</span>}
         </span>
-      </div>
       <div className="mode-switch">
         {(['scenario','defend','story'] as const).map(m => (
           <button key={m} className={"panel "+(mode===m?'active':'')} onClick={()=>setMode(m)}>{m.toUpperCase()}</button>
         ))}
-      </div>
-      <div className="right-box">
-        <button 
-          className="cta" 
-          onClick={toggleRun}
-          disabled={showImpactMap}
-          style={{ opacity: showImpactMap ? 0.5 : 1 }}
-        >
-          {running? 'Pause' : 'Start'}
-        </button>
-        <button 
-          className="cta" 
-          onClick={reset}
-          disabled={showImpactMap}
-          style={{ opacity: showImpactMap ? 0.5 : 1 }}
-        >
-          Reset
-        </button>
       </div>
     </div>
   )
