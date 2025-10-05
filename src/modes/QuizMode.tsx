@@ -1,8 +1,9 @@
 // src/modes/QuizMode.tsx
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSimStore } from '../state/useSimStore'
 import { assessTsunami, buildTsunamiQuestion } from '../lib/tsunami'
 import { assessPopulationDensity, estimateCasualties, buildCasualtyQuestion } from '../lib/casualty'
+import { buildThermalQuestion, buildSeismicQuestion, buildEnergyClassQuestion } from '../lib/dynamics'
 
 type Q = { q: string; choices: string[]; explanations: string[]; answer: number }
 
@@ -20,111 +21,114 @@ const STATIC_QUESTIONS: Q[] = [
     }
 ]
 
+// helpers
+const shuffle = <T,>(a: T[]) => a.map(x => [Math.random(), x] as const).sort((p, q) => p[0] - q[0]).map(([, x]) => x)
+const pickRandom = <T,>(arr: T[], n: number) => shuffle(arr).slice(0, Math.max(0, Math.min(n, arr.length)))
+
 export default function QuizMode() {
     const resumeFromQuiz = useSimStore(s => s.resumeFromQuiz)
-    const { impactLat, impactLon, readouts } = useSimStore(s => ({
+
+    // snapshot values at mount so the quiz doesn't reshuffle if state changes
+    const { impactLat, impactLon, energyTNT, craterKm } = useSimStore(s => ({
         impactLat: s.impactLat,
         impactLon: s.impactLon,
-        readouts: s.readouts
+        energyTNT: s.readouts.energyTNT,
+        craterKm: s.readouts.craterKm
     }))
 
+    const [questions, setQuestions] = useState<Q[] | null>(null)
     const [picked, setPicked] = useState<number[]>([])
     const [submitted, setSubmitted] = useState(false)
 
-    // Dynamic questions
-    const [tsunamiQ, setTsunamiQ] = useState<Q | null>(null)
-    const [casualtyQ, setCasualtyQ] = useState<Q | null>(null)
-
+    // Build the question pool once, then pick 3 at random and freeze it
     useEffect(() => {
         let alive = true
             ; (async () => {
                 try {
-                    // 1) Terrain/tsunami assessment
-                    const tsu = await assessTsunami(impactLat, impactLon, readouts.energyTNT, readouts.craterKm)
-                    if (!alive) return
-                    setTsunamiQ(buildTsunamiQuestion(tsu))
+                    // 1) Terrain/tsunami
+                    const tsu = await assessTsunami(impactLat, impactLon, energyTNT, craterKm)
+                    const qTsu = buildTsunamiQuestion(tsu)
 
                     // 2) Density → casualties
                     const dens = await assessPopulationDensity(impactLat, impactLon, tsu.terrain)
-                    if (!alive) return
-
-                    // blast radius proxy (your map logic used crater*2.5; keep consistent)
-                    const craterKm = readouts.craterKm
                     const blastRadiusKm = craterKm * 2.5
-
                     const cas = estimateCasualties({
-                        energyTNT: readouts.energyTNT,
+                        energyTNT,
                         craterKm,
                         blastRadiusKm,
                         densityPkm2: dens.densityPkm2,
                         tsunamiRisk: tsu.risk
                     })
-
-                    // fill in density category used in explanation
                     cas.density = dens
+                    const qCas = buildCasualtyQuestion(cas)
+
+                    // 3) Pure local dynamics (no network)
+                    const qThermal = buildThermalQuestion(energyTNT)
+                    const qSeismic = buildSeismicQuestion(energyTNT)
+                    const qEnergy = buildEnergyClassQuestion(energyTNT)
+
+                    const pool: Q[] = [
+                        STATIC_QUESTIONS[0],
+                        qTsu,
+                        qCas,
+                        qThermal,
+                        qSeismic,
+                        qEnergy
+                    ]
+
+                    const chosen = pickRandom(pool, 3)
 
                     if (!alive) return
-                    setCasualtyQ(buildCasualtyQuestion(cas))
+                    setQuestions(chosen)
+                    setPicked(Array(chosen.length).fill(-1))
                 } catch {
                     if (!alive) return
-                    // Fallback, very generic
-                    setTsunamiQ({
-                        q: 'Based on the current impact location, what is the tsunami risk?',
-                        choices: ['Unable to determine', 'LOW', 'MODERATE', 'HIGH'],
-                        explanations: [
-                            'Correct — necessary data was unavailable.',
-                            'Assumes low risk without data.',
-                            'Assumes moderate risk without data.',
-                            'Assumes high risk without data.'
-                        ],
-                        answer: 0
-                    })
-                    setCasualtyQ({
-                        q: 'Which factor most increases expected casualties?',
-                        choices: ['Impact energy', 'Population density', 'Local terrain/elevation', 'All of the above'],
-                        explanations: [
-                            'Energy matters but not alone.',
-                            'Density matters but not alone.',
-                            'Terrain matters but not alone.',
-                            'Correct — all contribute significantly.'
-                        ],
-                        answer: 3
-                    })
+                    // Very safe minimal fallbacks
+                    const fallback: Q[] = [
+                        STATIC_QUESTIONS[0],
+                        {
+                            q: 'Which factor most increases expected casualties?',
+                            choices: ['Impact energy', 'Population density', 'Local terrain/elevation', 'All of the above'],
+                            explanations: [
+                                'Energy matters but not alone.',
+                                'Density matters but not alone.',
+                                'Terrain matters but not alone.',
+                                'Correct — all contribute significantly.'
+                            ],
+                            answer: 3
+                        },
+                        buildEnergyClassQuestion(energyTNT)
+                    ]
+                    const chosen = pickRandom(fallback, 3)
+                    setQuestions(chosen)
+                    setPicked(Array(chosen.length).fill(-1))
                 }
             })()
         return () => { alive = false }
-    }, [impactLat, impactLon, readouts.energyTNT, readouts.craterKm])
+        // run once per quiz instance (on mount)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
-    // Final 3-question set: 1 static + 2 dynamic
-    const QUESTIONS: Q[] = useMemo(() => {
-        const list: Q[] = []
-        list.push(STATIC_QUESTIONS[0])
-        list.push(
-            tsunamiQ ?? {
-                q: 'Calculating terrain-aware tsunami risk...',
-                choices: ['…', '…', '…', '…'],
-                explanations: ['Loading…', 'Loading…', 'Loading…', 'Loading…'],
-                answer: 0
-            }
-        )
-        list.push(
-            casualtyQ ?? {
-                q: 'Estimating population-aware casualties...',
-                choices: ['…', '…', '…', '…'],
-                explanations: ['Loading…', 'Loading…', 'Loading…', 'Loading…'],
-                answer: 0
-            }
-        )
-        return list
-    }, [tsunamiQ, casualtyQ])
-
-    useEffect(() => {
-        setPicked(prev => prev.length === QUESTIONS.length ? prev : Array(QUESTIONS.length).fill(-1))
-    }, [QUESTIONS.length])
-
-    const correctCount = submitted
-        ? picked.filter((p, i) => p === QUESTIONS[i].answer).length
+    const correctCount = submitted && questions
+        ? picked.filter((p, i) => p === questions[i].answer).length
         : 0
+
+    // Loading panel
+    if (!questions) {
+        return (
+            <div
+                style={{
+                    position: 'fixed', inset: 0,
+                    display: 'grid', placeItems: 'center',
+                    background: 'rgba(0,0,0,.55)', zIndex: 1000, padding: 16
+                }}
+            >
+                <div className="panel" style={{ width: 'min(520px, 94vw)', padding: 16, textAlign: 'center' }}>
+                    Preparing quiz…
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div
@@ -152,7 +156,7 @@ export default function QuizMode() {
                 </div>
 
                 <div style={{ flex: 1, overflowY: 'auto', paddingRight: 6, display: 'grid', gap: 12 }}>
-                    {QUESTIONS.map((q, qi) => {
+                    {questions.map((q, qi) => {
                         const userPick = picked[qi]
                         const isCorrect = submitted && userPick === q.answer
                         const showFeedback = submitted && q.explanations?.length === q.choices.length
@@ -232,11 +236,11 @@ export default function QuizMode() {
                     ) : (
                         <>
                             <div style={{ alignSelf: 'center', marginRight: 'auto', opacity: .9 }}>
-                                Score: {correctCount} / {QUESTIONS.length}
+                                Score: {correctCount} / {questions.length}
                             </div>
                             <button
                                 className="btn"
-                                onClick={() => { setSubmitted(false); setPicked(Array(QUESTIONS.length).fill(-1)) }}
+                                onClick={() => { setSubmitted(false); setPicked(Array(questions.length).fill(-1)) }}
                             >
                                 Retry
                             </button>

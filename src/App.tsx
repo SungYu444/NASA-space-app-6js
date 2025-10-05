@@ -11,11 +11,14 @@ import CameraRig from './scene/CameraRig'
 import NasaPanel from './ui/nasaPanel'
 import QuizMode from './modes/QuizMode'
 import Starfield from './scene/Starfield'
+import QuizLaunchPrompt from './ui/QuizLaunchPrompt'
 
 export default function App() {
   const mode = useSimStore(s => s.mode)
   const showImpactMap = useSimStore(s => s.showImpactMap)
   const quizVisible = useSimStore(s => s.quizVisible)
+  const running = useSimStore(s => s.running)
+  const time = useSimStore(s => s.time)
 
   return (
     <div className="app-shell">
@@ -40,6 +43,8 @@ export default function App() {
         <NasaPanel />
         <div className="footer-hint">Left-drag: rotate • Mouse wheel: zoom • Right-drag: pan</div>
       </div>
+
+      {mode === 'quiz' && time === 0 && !running && !quizVisible && <QuizLaunchPrompt />}
 
       {/* Overlays / Modals (render outside UI so they cover everything) */}
       {showImpactMap && <ImpactMap onClose={() => { }} />}
