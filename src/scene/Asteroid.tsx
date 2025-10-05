@@ -2,7 +2,7 @@
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Sparkles, Trail } from '@react-three/drei'
-import { useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSimStore } from '../state/useSimStore'
 import { latLonToVector3, simplePathAtTime } from '../lib/kinematics'
 
@@ -10,6 +10,7 @@ export default function Asteroid(){
   // read sim state
   const time      = useSimStore(s=>s.time)
   const duration  = useSimStore(s=>s.duration)
+  const size      = useSimStore(s=>s.size)
   const speed     = useSimStore(s=>s.speed)
   const approach  = useSimStore(s=>s.approachAngle)
   const mitigation = useSimStore(s=>s.mitigation)
@@ -22,6 +23,18 @@ export default function Asteroid(){
     isShaking: s.isShaking,
     shakeIntensity: s.shakeIntensity
   }))
+
+// texture loading
+  const [asteroidTexture, setAsteroidTexture] = useState<THREE.Texture | null>(null)
+
+  useEffect(() => {
+    const loader = new THREE.TextureLoader()
+    loader.load('/meteor.jpg', (texture) => {
+      texture.wrapS = THREE.RepeatWrapping
+      texture.wrapT = THREE.RepeatWrapping
+      setAsteroidTexture(texture)
+    })
+  }, [])
 
   // refs
   const groupRef = useRef<THREE.Group>(null!)
@@ -82,7 +95,9 @@ export default function Asteroid(){
     const speedNorm = THREE.MathUtils.clamp((speed - 5) / 65, 0, 1)
 
     // glow shell grows + brightens with heat & speed
-    const glowScale = 1 + THREE.MathUtils.lerp(0.05, 0.35, heat)
+    const baseGlowScale = size / 120  // Scale with asteroid size
+    const heatGlowScale = 1 + THREE.MathUtils.lerp(0.05, 0.35, heat)
+    const glowScale = baseGlowScale * heatGlowScale
     if (glowRef.current){
       glowRef.current.scale.setScalar(glowScale)
       const mat = glowRef.current.material as THREE.MeshBasicMaterial
@@ -112,9 +127,16 @@ export default function Asteroid(){
           <pointLight ref={lightRef} color={'#ffb07a'} intensity={0} distance={0} />
 
           {/* rock core */}
-          <mesh ref={coreRef} castShadow>
-            <icosahedronGeometry args={[0.06, 1]} />
-            <meshStandardMaterial color={'#c7c7c7'} roughness={0.85} metalness={0.15} />
+           <mesh ref={coreRef} castShadow>
+            <icosahedronGeometry args={[0.06 * (size / 120), 2]} />
+            <meshStandardMaterial 
+              map={asteroidTexture || undefined}
+              color={asteroidTexture ? '#ffffff' : '#6a6a6a'}
+              roughness={0.95} 
+              metalness={0.0}
+              bumpMap={asteroidTexture || undefined}
+              bumpScale={0.005}
+            />
           </mesh>
 
           {/* additive glow shell */}

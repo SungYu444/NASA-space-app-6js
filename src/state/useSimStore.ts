@@ -167,6 +167,7 @@ export const useSimStore = create<SimState>((set, get) => {
     shakeStartTime: 0,
   }
 
+  
   // Calculate initial impact position
   const initialImpact = simplePathAtTime({
     time: base.duration,
