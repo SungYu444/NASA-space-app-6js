@@ -3,26 +3,26 @@ import { useMemo } from 'react'
 import { useSimStore } from '../state/useSimStore'
 import { latLonToVector3 } from '../lib/kinematics'
 
-function CircleOverlay({ lat, lon, radiusKm, color, altitude=1.002 }:{ lat:number; lon:number; radiusKm:number; color:number; altitude?:number }){
+function CircleOverlay({ lat, lon, radiusKm, color, altitude = 1.002 }: { lat: number; lon: number; radiusKm: number; color: number; altitude?: number }) {
   const segments = 256
-  const pts = useMemo(()=>{
+  const pts = useMemo(() => {
     // Safety check for valid inputs
     if (!isFinite(lat) || !isFinite(lon) || !isFinite(radiusKm) || !isFinite(altitude)) {
       return []
     }
-    
+
     const arr: THREE.Vector3[] = []
     const earthRadiusKm = 6371
-    const angle = (radiusKm / earthRadiusKm) * 180/Math.PI // convert arc length to degrees approx.
-    for(let i=0;i<=segments;i++){
-      const theta = (i/segments) * Math.PI*2
+    const angle = (radiusKm / earthRadiusKm) * 180 / Math.PI // convert arc length to degrees approx.
+    for (let i = 0; i <= segments; i++) {
+      const theta = (i / segments) * Math.PI * 2
       const dLat = angle * Math.cos(theta)
       const dLon = angle * Math.sin(theta)
       arr.push(latLonToVector3(lat + dLat, lon + dLon, altitude))
     }
     return arr
   }, [lat, lon, radiusKm, altitude])
-  
+
   // Don't render if no valid points
   if (pts.length === 0) {
     return null
@@ -38,7 +38,7 @@ function CircleOverlay({ lat, lon, radiusKm, color, altitude=1.002 }:{ lat:numbe
   )
 }
 
-export default function ImpactOverlays(){
+export default function ImpactOverlays() {
   const { targetLat, targetLon, blastKm, seismicKm, tsunamiKm } = useSimStore(s => ({
     targetLat: s.targetLat ?? 40,
     targetLon: s.targetLon ?? -100,
@@ -46,18 +46,18 @@ export default function ImpactOverlays(){
     seismicKm: s.seismicKm ?? 0,
     tsunamiKm: s.tsunamiKm ?? 0
   }))
-  
+
   // Don't render if coordinates are invalid
   if (!isFinite(targetLat) || !isFinite(targetLon) || !isFinite(blastKm) || !isFinite(seismicKm) || !isFinite(tsunamiKm)) {
     return null
   }
-  
+
   // Debug: Log when coordinates change
   console.log(`ImpactOverlays rendering with target: ${targetLat.toFixed(2)}°N, ${targetLon.toFixed(2)}°E`)
-  
+
   // Create a unique key based on target coordinates to force re-render
   const targetKey = `${targetLat.toFixed(3)}_${targetLon.toFixed(3)}`
-  
+
   return (
     <group key={targetKey}>
       <CircleOverlay lat={targetLat} lon={targetLon} radiusKm={blastKm} color={0xffb86c} />

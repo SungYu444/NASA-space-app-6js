@@ -2,10 +2,13 @@
 import { useEffect, useMemo } from 'react'
 import { useSimStore } from '../state/useSimStore'
 
+const sv = (n: number | undefined | null, fallback = 0) =>
+  Number.isFinite(n as number) ? (n as number) : fallback
+
 export default function ControlPanel() {
   const s = useSimStore()
 
-  // --- rAF loop: advances time while running=true ---
+  // rAF loop
   useEffect(() => {
     let raf = 0
     let last = performance.now()
@@ -19,12 +22,15 @@ export default function ControlPanel() {
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  // handy derived label values
-  const durationLabel = useMemo(() => s.duration.toFixed(0), [s.duration])
-  const timeLabel = useMemo(() => s.time.toFixed(1), [s.time])
+  // labels (safe)
+  const durationNum = sv(s.duration, 10)
+  const timeNum = sv(s.time, 0)
+  const durationLabel = useMemo(() => durationNum.toFixed(0), [durationNum])
+  const timeLabel = useMemo(() => timeNum.toFixed(1), [timeNum])
 
-  // lock everything except Pause/Reset/Impact Analysis while running
-  const locked = s.running
+  // lock everything except Start/Pause, Reset, and Impact Analysis
+  // also lock while quizVisible so the user can’t change values mid-quiz
+  const locked = s.running || s.quizVisible
   const dim = locked ? 0.5 : 1
 
   return (
@@ -80,7 +86,6 @@ export default function ControlPanel() {
             borderColor: '#66e0ff',
             fontSize: '14px',
             fontWeight: '600',
-            // keep fully opaque even when running
             opacity: 1
           }}
         >
@@ -89,52 +94,52 @@ export default function ControlPanel() {
       </div>
 
       {/* Size */}
-      <div className="row"><span className="label">Asteroid Size (m)</span><span className="value">{s.size.toFixed(0)}</span></div>
+      <div className="row"><span className="label">Asteroid Size (m)</span><span className="value">{sv(s.size, 120).toFixed(0)}</span></div>
       <input
         type="range"
         min={10}
         max={1000}
         step={1}
-        value={s.size}
+        value={sv(s.size, 120)}
         onChange={e => s.setSize(+e.target.value)}
         disabled={locked}
         style={{ opacity: dim }}
       />
 
       {/* Speed */}
-      <div className="row"><span className="label">Speed (km/s)</span><span className="value">{s.speed.toFixed(1)}</span></div>
+      <div className="row"><span className="label">Speed (km/s)</span><span className="value">{sv(s.speed, 18).toFixed(1)}</span></div>
       <input
         type="range"
         min={5}
         max={70}
         step={0.1}
-        value={s.speed}
+        value={sv(s.speed, 18)}
         onChange={e => s.setSpeed(+e.target.value)}
         disabled={locked}
         style={{ opacity: dim }}
       />
 
       {/* Approach Angle */}
-      <div className="row"><span className="label">Approach Angle (°)</span><span className="value">{s.approachAngle.toFixed(0)}</span></div>
+      <div className="row"><span className="label">Approach Angle (°)</span><span className="value">{sv(s.approachAngle, 35).toFixed(0)}</span></div>
       <input
         type="range"
         min={5}
         max={85}
         step={1}
-        value={s.approachAngle}
+        value={sv(s.approachAngle, 35)}
         onChange={e => s.setApproachAngle(+e.target.value)}
         disabled={locked}
         style={{ opacity: dim }}
       />
 
       {/* Density */}
-      <div className="row"><span className="label">Density (kg/m³)</span><span className="value">{s.density.toFixed(0)}</span></div>
+      <div className="row"><span className="label">Density (kg/m³)</span><span className="value">{sv(s.density, 3000).toFixed(0)}</span></div>
       <input
         type="range"
         min={500}
         max={7000}
         step={100}
-        value={s.density}
+        value={sv(s.density, 3000)}
         onChange={e => s.setDensity(+e.target.value)}
         disabled={locked}
         style={{ opacity: dim }}
@@ -145,9 +150,9 @@ export default function ControlPanel() {
       <input
         type="range"
         min={0}
-        max={s.duration}
+        max={Math.max(0.1, durationNum)}
         step={0.1}
-        value={s.time}
+        value={Math.min(timeNum, durationNum)}
         onChange={(e) => s.setTime(+e.target.value)}
         disabled={locked}
         style={{ opacity: dim }}
