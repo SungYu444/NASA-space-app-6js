@@ -4,6 +4,10 @@ import { useSimStore } from '../state/useSimStore'
 
 export default function ControlPanel() {
   const s = useSimStore()
+  const { useNasaData, nasaAsteroidData } = useSimStore(s => ({
+    useNasaData: s.useNasaData,
+    nasaAsteroidData: s.nasaAsteroidData
+  }))
 
   // --- rAF loop: advances time while running=true ---
   useEffect(() => {
@@ -75,6 +79,22 @@ export default function ControlPanel() {
           Reset
         </button>
       </div>
+
+      {/* NASA Data Status */}
+      {useNasaData && nasaAsteroidData && (
+        <div style={{
+          fontSize: '11px',
+          color: 'rgba(102, 224, 255, 0.9)',
+          marginBottom: '8px',
+          textAlign: 'center',
+          padding: '6px',
+          background: 'rgba(102, 224, 255, 0.1)',
+          borderRadius: '4px',
+          border: '1px solid rgba(102, 224, 255, 0.3)'
+        }}>
+          🌌 Using NASA Data: {nasaAsteroidData.basicInfo.name}
+        </div>
+      )}
 
       {/* Impact Analysis Button */}
       <div style={{ marginBottom: 12 }}>

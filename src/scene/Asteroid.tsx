@@ -20,7 +20,9 @@ export default function Asteroid() {
   // target override + flag
   const targetLat = useSimStore(s => s.targetLat)
   const targetLon = useSimStore(s => s.targetLon)
-  const useTargetImpact = useSimStore(s => s.useTargetImpact) // ensure this exists in the store
+  const useTargetImpact = useSimStore(s => s.useTargetImpact)
+  const nasaData = useSimStore(s => s.nasaAsteroidData)
+  const useNasaData = useSimStore(s => s.useNasaData)
 
   const setImpactLatLon = useSimStore(s => s.setImpactLatLon)
   const { isShaking, shakeIntensity } = useSimStore(s => ({

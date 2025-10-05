@@ -5,12 +5,14 @@ interface ImpactMapProps {
 }
 
 export default function ImpactMap({ onClose }: ImpactMapProps) {
-  const { impactLat, impactLon, readouts, setShowImpactMap, pause } = useSimStore(s => ({
+  const { impactLat, impactLon, readouts, setShowImpactMap, pause, nasaAsteroidData, useNasaData } = useSimStore(s => ({
     impactLat: s.impactLat,
     impactLon: s.impactLon,
     readouts: s.readouts,
     setShowImpactMap: s.setShowImpactMap,
-    pause: s.pause
+    pause: s.pause,
+    nasaAsteroidData: s.nasaAsteroidData,
+    useNasaData: s.useNasaData
   }))
 
   const handleClose = () => {
@@ -167,6 +169,64 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
               </div>
             </div>
           </div>
+
+          {/* NASA Asteroid Information */}
+          {useNasaData && nasaAsteroidData && (
+            <div className="impact-stats" style={{ marginTop: '24px' }}>
+              <h3>🌌 NASA Asteroid Data</h3>
+              <div className="stats-grid">
+                <div className="stat-item">
+                  <div className="stat-label">Asteroid Name</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>{nasaAsteroidData.basicInfo.name}</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Designation</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>{nasaAsteroidData.basicInfo.designation}</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Real Size Range</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>
+                    {nasaAsteroidData.size.meters.min.toFixed(0)}-{nasaAsteroidData.size.meters.max.toFixed(0)} m
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Real Speed</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>
+                    {nasaAsteroidData.speed.kmPerSecond?.toFixed(1) || 'N/A'} km/s
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Hazardous</div>
+                  <div className="stat-value" style={{ 
+                    fontSize: '12px',
+                    color: nasaAsteroidData.basicInfo.isPotentiallyHazardous ? '#ff6b6b' : '#66ff66'
+                  }}>
+                    {nasaAsteroidData.basicInfo.isPotentiallyHazardous ? 'YES' : 'NO'}
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-label">Orbital Inclination</div>
+                  <div className="stat-value" style={{ fontSize: '12px' }}>
+                    {nasaAsteroidData.orbital.inclinationDegrees?.toFixed(1) || 'N/A'}°
+                  </div>
+                </div>
+              </div>
+              <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                <a 
+                  href={nasaAsteroidData.basicInfo.nasaJplUrl} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  style={{ 
+                    color: '#66e0ff', 
+                    textDecoration: 'none',
+                    fontSize: '12px'
+                  }}
+                >
+                  🔗 View on NASA JPL
+                </a>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="impact-map-footer">
