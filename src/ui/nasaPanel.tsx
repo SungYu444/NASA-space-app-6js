@@ -392,7 +392,7 @@ export default function AsteroidViewer() {
               disabled={!info}
             >
               {activeTab === 'simple'
-                ? 'lets bomb earth with this asteriod !'
+                ? 'Apply Parameters'
                 : 'Apply Parameters'}
             </button>
           </div>
