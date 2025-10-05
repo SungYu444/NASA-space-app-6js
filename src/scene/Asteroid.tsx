@@ -53,10 +53,18 @@ export default function Asteroid() {
   const shockRef = useRef<THREE.Mesh>(null!)
   const shockMatRef = useRef<THREE.ShaderMaterial>(null!)
 
+  // crater refs
+  const craterGroupRef = useRef<THREE.Group>(null!)
+  const craterMeshRef = useRef<THREE.Mesh>(null!)
+
   const { camera } = useThree()
 
   // easing for flame visibility near atmosphere
   const flameFactorRef = useRef(0)
+
+  // final impact lat/lon (sticky once known)
+  const impactLatRef = useRef<number | null>(null)
+  const impactLonRef = useRef<number | null>(null)
 
   // ---------- SHADERS ----------
   const commonNoise = `
@@ -141,6 +149,10 @@ export default function Asteroid() {
     })
     setImpactLatLon(impactLat, impactLon)
 
+    // remember final impact for crater placement
+    impactLatRef.current = impactLat
+    impactLonRef.current = impactLon
+
     const end = latLonToVector3(impactLat, impactLon, 1.02)
     const n = end.clone().normalize()
     let t = new THREE.Vector3().crossVectors(n, new THREE.Vector3(0, 1, 0))
@@ -155,16 +167,23 @@ export default function Asteroid() {
 
     const tNorm = Math.min(1, Math.max(0, time / duration))
     const pos = curve.getPoint(tNorm)
-    groupRef.current.position.copy(pos)
 
-    let tan = curve.getTangent(tNorm)
-    if (!isFiniteVec3(tan) || tan.lengthSq() === 0) tan.set(0, 0, 1)
-    tan.normalize()
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan)
-    groupRef.current.quaternion.copy(q)
+    // Impact flag
+    const impacted = time >= duration
 
-    // spin
-    if (coreRef.current) {
+    // Update asteroid transform only while in-flight
+    if (!impacted && groupRef.current) {
+      groupRef.current.position.copy(pos)
+
+      let tan = curve.getTangent(tNorm)
+      if (!isFiniteVec3(tan) || tan.lengthSq() === 0) tan.set(0, 0, 1)
+      tan.normalize()
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan)
+      groupRef.current.quaternion.copy(q)
+    }
+
+    // spin only while visible
+    if (!impacted && coreRef.current) {
       coreRef.current.rotation.x += dt * 1.2
       coreRef.current.rotation.y += dt * 0.8
     }
@@ -172,21 +191,28 @@ export default function Asteroid() {
     // size scale
     const sizeScale = size / 120
 
-    // heat/lighting
+    // heat/lighting (zero after impact)
     const r = pos.length()
-    const heat = THREE.MathUtils.clamp(1 - (r - 1.0) / 0.5, 0, 1)
+    const heat = impacted ? 0 : THREE.MathUtils.clamp(1 - (r - 1.0) / 0.5, 0, 1)
     const speedNorm = THREE.MathUtils.clamp((speed - 5) / 65, 0, 1)
     const baseGlowScale = sizeScale
     const heatGlowScale = 1 + THREE.MathUtils.lerp(0.05, 0.35, heat)
     const glowScale = baseGlowScale * heatGlowScale
+
     if (glowRef.current) {
-      glowRef.current.scale.setScalar(glowScale)
-      const mat = glowRef.current.material as THREE.MeshBasicMaterial
-      mat.opacity = THREE.MathUtils.lerp(0.0, 0.9, heat * (0.6 + speedNorm * 0.4))
+      glowRef.current.visible = !impacted
+      if (!impacted) {
+        glowRef.current.scale.setScalar(glowScale)
+        const mat = glowRef.current.material as THREE.MeshBasicMaterial
+        mat.opacity = THREE.MathUtils.lerp(0.0, 0.9, heat * (0.6 + speedNorm * 0.4))
+      }
     }
     if (lightRef.current) {
-      lightRef.current.intensity = THREE.MathUtils.lerp(0.0, 10.0, heat)
-      lightRef.current.distance = THREE.MathUtils.lerp(0.0, 3.5, heat)
+      lightRef.current.visible = !impacted
+      if (!impacted) {
+        lightRef.current.intensity = THREE.MathUtils.lerp(0.0, 10.0, heat)
+        lightRef.current.distance = THREE.MathUtils.lerp(0.0, 3.5, heat)
+      }
     }
 
     // atmosphere gating + easing (shock only)
@@ -194,7 +220,7 @@ export default function Asteroid() {
     const inAtmosphere = heat > 0.02
     const growRate = 1.2 + 1.8 * heat
     const decayRate = 2.0
-    const target = (beforeImpact && inAtmosphere) ? 1 : 0
+    const target = (!impacted && beforeImpact && inAtmosphere) ? 1 : 0
     const f = flameFactorRef.current
     const rate = target > f ? growRate : decayRate
     flameFactorRef.current = THREE.MathUtils.clamp(f + (target - f) * (1 - Math.exp(-rate * dt)), 0, 1)
@@ -206,7 +232,7 @@ export default function Asteroid() {
 
     // shock shell update
     if (shockMatRef.current && shockRef.current) {
-      shockRef.current.visible = flameFactor > 0.01
+      shockRef.current.visible = !impacted && flameFactor > 0.01
       if (shockRef.current.visible) {
         shockMatRef.current.uniforms.u_time.value += dt
         shockMatRef.current.uniforms.u_intensity.value = visIntensity
@@ -216,56 +242,113 @@ export default function Asteroid() {
       }
     }
 
-    // camera shake on impact (unchanged)
+    // Keep shake even after impact
     if (isShaking && shakeIntensity > 0) {
       const shake = shakeIntensity * 0.02
       camera.position.x += (Math.random() - 0.5) * shake
       camera.position.y += (Math.random() - 0.5) * shake
     }
+
+    // Crater placement/orientation once impacted
+    // Crater radius = asteroid contact radius (same as the core mesh radius)
+    const asteroidRadius = 0.06 * sizeScale
+    
+    if (craterGroupRef.current) {
+      if (impacted && impactLatRef.current != null && impactLonRef.current != null) {
+        const hit = latLonToVector3(impactLatRef.current, impactLonRef.current, 1.001) // just above surface
+        const nrm = hit.clone().normalize()
+        craterGroupRef.current.position.copy(hit)
+
+        // orient crater plane so its +Z faces outward (align with normal)
+        const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm)
+        craterGroupRef.current.quaternion.copy(quat)
+
+        craterGroupRef.current.visible = true
+
+        // Scale crater to match asteroid contact area
+        craterGroupRef.current.scale.setScalar(asteroidRadius)
+      } else {
+        craterGroupRef.current.visible = false
+      }
+    }
+
+    // Hide the entire asteroid group once impacted
+    if (groupRef.current) {
+      groupRef.current.visible = !impacted
+    }
   })
 
   return (
-    <group ref={groupRef}>
-      {/* history trail only when running; width scales with meteor size */}
-      {running && (
-        <Trail
-          width={0.12 * (size / 120)}
-          length={9}
-          color="#ffd9a6"
-          attenuation={(t) => t}
-        >
-          <group>
-            <pointLight ref={lightRef} color={'#ffb07a'} intensity={0} distance={0} />
-            <mesh ref={coreRef} castShadow>
-              <icosahedronGeometry args={[0.06 * (size / 120), 2]} />
-              <meshStandardMaterial
-                map={asteroidTexture || undefined}
-                color={asteroidTexture ? '#ffffff' : '#6a6a6a'}
-                roughness={0.95}
-                metalness={0.0}
-                bumpMap={asteroidTexture || undefined}
-                bumpScale={0.005}
-              />
-            </mesh>
-            <mesh ref={glowRef}>
-              <sphereGeometry args={[0.09, 32, 32]} />
-              <meshBasicMaterial
-                color={'#ff8a00'}
-                transparent
-                opacity={0.0}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-              />
-            </mesh>
-          </group>
-        </Trail>
-      )}
+    <>
+      {/* Asteroid and trail (hidden after impact) */}
+      <group ref={groupRef}>
+        {/* history trail only when running; width scales with meteor size */}
+        {running && (
+          <Trail
+            width={0.12 * (size / 120)}
+            length={9}
+            color="#ffd9a6"
+            attenuation={(t) => t}
+          >
+            <group>
+              <pointLight ref={lightRef} color={'#ffb07a'} intensity={0} distance={0} />
+              <mesh ref={coreRef} castShadow>
+                <icosahedronGeometry args={[0.06 * (size / 120), 2]} />
+                <meshStandardMaterial
+                  map={asteroidTexture || undefined}
+                  color={asteroidTexture ? '#ffffff' : '#6a6a6a'}
+                  roughness={0.95}
+                  metalness={0.0}
+                  bumpMap={asteroidTexture || undefined}
+                  bumpScale={0.005}
+                />
+              </mesh>
+              <mesh ref={glowRef}>
+                <sphereGeometry args={[0.09, 32, 32]} />
+                <meshBasicMaterial
+                  color={'#ff8a00'}
+                  transparent
+                  opacity={0.0}
+                  depthWrite={false}
+                  blending={THREE.AdditiveBlending}
+                />
+              </mesh>
+            </group>
+          </Trail>
+        )}
 
-      {/* shock shell only (no cone) */}
-      <mesh ref={shockRef}>
-        <sphereGeometry args={[0.11, 32, 32]} />
-        <primitive object={shockMaterial} attach="material" />
-      </mesh>
-    </group>
+        {/* shock shell only (no cone) */}
+        <mesh ref={shockRef}>
+          <sphereGeometry args={[0.11, 32, 32]} />
+          <primitive object={shockMaterial} attach="material" />
+        </mesh>
+      </group>
+
+      {/* Crater marker: red disc sized to asteroid contact area */}
+      <group ref={craterGroupRef} visible={false}>
+        <mesh ref={craterMeshRef}>
+          {/* Unit circle; scaled to asteroid radius in the frame loop */}
+          <circleGeometry args={[1, 64]} />
+          <meshBasicMaterial
+            color="#ff0000"
+            transparent
+            opacity={0.85}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        {/* Optional: subtle outer glow ring */}
+        <mesh>
+          <ringGeometry args={[1.0, 1.15, 64]} />
+          <meshBasicMaterial
+            color="#ff4444"
+            transparent
+            opacity={0.4}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      </group>
+    </>
   )
 }
