@@ -59,8 +59,15 @@ button, input, select, a, .btn, .cta {
 
 .control-panel { position: absolute; left: 24px; bottom: 24px; width: 380px; padding: 14px; }
 .mitigation-panel { position: absolute; right: 24px; bottom: 24px; width: 380px; padding: 14px; }
-.stat-panel { position: absolute; right: 24px; top: 72px; width: 300px; padding: 14px; }
-
+.stat-panel {
+  position: absolute;
+  right: 24px;     /* keeps it anchored to the right edge */
+  top: 72px;       /* moves it just below the top bar */
+  width: 380px;    /* increase width so it fits your info content */
+  max-height: 80vh; /* optional: prevent it from growing too tall */
+  overflow-y: auto; /* scroll if the asteroid details are long */
+  padding: 14px;
+}
 .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; margin: 8px 0; }
 .label { font-size: 12px; opacity: 0.8; }
 .value { font-size: 12px; opacity: 0.9; }

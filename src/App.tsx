@@ -41,9 +41,10 @@ export default function App(){
       <div className="ui-layer">
         <TopBar />
         <ControlPanel />
-        <MitigationPanel />
-        <NasaPanel />
+        
         <StatsPanel />
+        <NasaPanel />
+        
         {mode==='defend' && <DefendMode />}
         {mode==='story' && <StoryMode />}
         <div className="footer-hint">Left-drag: rotate • Mouse wheel: zoom • Right-drag: pan</div>
