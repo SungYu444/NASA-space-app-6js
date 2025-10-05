@@ -16,6 +16,8 @@ export default function Asteroid() {
   const mitigation = useSimStore(s => s.mitigation)
   const mitigationPower = useSimStore(s => s.mitigationPower)
   const leadTime = useSimStore(s => s.leadTime)
+  const running = useSimStore(s => s.running)
+
 
   // target override + flag
   const targetLat = useSimStore(s => s.targetLat)
@@ -141,6 +143,7 @@ export default function Asteroid() {
   return (
     <group ref={groupRef}>
       {/* Trail records the group's motion each frame and draws a streak */}
+      {running && (
       <Trail width={0.12} length={9} color="#ffd9a6" attenuation={(t) => t}>
         <group>
           {/* hot bloom light */}
@@ -182,6 +185,7 @@ export default function Asteroid() {
           />
         </group>
       </Trail>
+      )}
     </group>
   )
 }
