@@ -2,6 +2,7 @@ import { useSimStore } from '../state/useSimStore'
 import { MapContainer, TileLayer, Circle, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useState } from 'react'
+import { assessPopulationDensity, estimateCasualties, type DensityAssessment, type CasualtyEstimate, type TsunamiRisk, type TerrainKind } from '../lib/casualty'
 
 interface ImpactMapProps {
   onClose: () => void
@@ -17,12 +18,13 @@ function MapCenter({ lat, lon }: { lat: number; lon: number }) {
 }
 
 export default function ImpactMap({ onClose }: ImpactMapProps) {
-  const { impactLat, impactLon, readouts, setShowImpactMap, pause } = useSimStore(s => ({
+  const { impactLat, impactLon, readouts, setShowImpactMap, pause, size: asteroidSizeFromStore } = useSimStore(s => ({
     impactLat: s.impactLat,
     impactLon: s.impactLon,
     readouts: s.readouts,
     setShowImpactMap: s.setShowImpactMap,
-    pause: s.pause
+    pause: s.pause,
+    size: s.size
   }))
 
   const handleClose = () => {
@@ -43,13 +45,29 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
 
   const { craterKm, energyTNT, speed, size } = readouts
 
+  // Calculate impact zone sizes based on meteorite properties
+  // Using scientific formulas for impact effects
+  const craterDiameterKm = craterKm
+  const blastRadiusKm = craterDiameterKm * 2.5  // Blast radius (thermal effects)
+  const seismicRadiusKm = craterDiameterKm * 15  // Seismic effects radius
+  
+  // Leaflet uses meters for circle radius, so convert km to meters
+  const craterRadiusM = (craterDiameterKm / 2) * 1000
+  const blastRadiusM = blastRadiusKm * 1000
+  const seismicRadiusM = seismicRadiusKm * 1000
+
   // Environmental effects state
   const [elevation, setElevation] = useState<number | null>(null)
   const [terrainType, setTerrainType] = useState<string>('Unknown')
   const [tsunamiRisk, setTsunamiRisk] = useState<string>('Calculating...')
   const [environmentalEffects, setEnvironmentalEffects] = useState<string[]>([])
+  
+  // Population impact state
+  const [densityAssessment, setDensityAssessment] = useState<DensityAssessment | null>(null)
+  const [casualtyEstimate, setCasualtyEstimate] = useState<CasualtyEstimate | null>(null)
+  const [earthquakeMagnitude, setEarthquakeMagnitude] = useState<number>(0)
 
-  // Fetch elevation data using Open-Elevation API
+  // Fetch elevation data
   useEffect(() => {
     const fetchElevation = async () => {
       try {
@@ -60,8 +78,6 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
         if (data.results && data.results[0]) {
           const elev = data.results[0].elevation
           setElevation(elev)
-          
-          // Determine terrain type and environmental effects
           analyzeEnvironmentalEffects(elev)
         }
       } catch (error) {
@@ -75,25 +91,120 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
     fetchElevation()
   }, [impactLat, impactLon])
 
-    const analyzeEnvironmentalEffects = (elev: number) => {
+  // Calculate casualties when we have the necessary data
+  useEffect(() => {
+    const calculateCasualties = async () => {
+      if (elevation === null || tsunamiRisk === 'Calculating...' || tsunamiRisk === 'Unable to determine') {
+        return
+      }
+
+      try {
+        // Determine terrain type from elevation
+        let terrain: TerrainKind = 'Unknown'
+        if (elevation < 0) terrain = 'Ocean/Sea'
+        else if (elevation < 10) terrain = 'Coastal/Low-lying'
+        else if (elevation < 100) terrain = 'Plains/Valley'
+        else if (elevation < 500) terrain = 'Hills/Plateau'
+        else terrain = 'Mountains'
+
+        // Assess population density
+        const density = await assessPopulationDensity(impactLat, impactLon, terrain)
+        setDensityAssessment(density)
+        
+        // Calculate earthquake magnitude
+        const magnitude = 4 + Math.log10(energyTNT)
+        setEarthquakeMagnitude(magnitude)
+        
+        // Check asteroid size first - if below 24, casualties = 0
+        const asteroidSize = asteroidSizeFromStore
+        if (asteroidSize < 24) {
+          setCasualtyEstimate({
+            density,
+            areaKm2: Math.PI * Math.pow(craterKm / 2 + 0.6 * blastRadiusKm, 2),
+            fatalityRate: 0,
+            casualties: 0
+          })
+          return
+        }
+        
+        // Check if seismic zone touches land
+        const isOceanImpact = terrain === 'Ocean/Sea'
+        
+        if (isOceanImpact) {
+          // For ocean impacts, check if seismic zone could reach land
+          // If impact is in deep ocean far from any coastline, casualties = 0
+          const isDeepOcean = elevation < -1000
+          const isSmallSeismicZone = seismicRadiusKm < 100
+          
+          if (isDeepOcean || isSmallSeismicZone) {
+            // Seismic zone doesn't reach land - hard code to 0 casualties
+            setCasualtyEstimate({
+              density,
+              areaKm2: Math.PI * Math.pow(craterKm / 2 + 0.6 * blastRadiusKm, 2),
+              fatalityRate: 0,
+              casualties: 0
+            })
+          } else {
+            // Seismic zone might reach land - calculate casualties
+            const casualties = estimateCasualties({
+              energyTNT,
+              craterKm,
+              blastRadiusKm,
+              densityPkm2: density.densityPkm2,
+              tsunamiRisk: tsunamiRisk.includes('EXTREME') ? 'EXTREME' :
+                          tsunamiRisk.includes('HIGH') ? 'HIGH' :
+                          tsunamiRisk.includes('MODERATE') ? 'MODERATE' :
+                          tsunamiRisk.includes('LOW') ? 'LOW' : 'NEGLIGIBLE'
+            })
+            setCasualtyEstimate(casualties)
+          }
+        } else {
+          // Land impact - calculate casualties normally
+          const casualties = estimateCasualties({
+            energyTNT,
+            craterKm,
+            blastRadiusKm,
+            densityPkm2: density.densityPkm2,
+            tsunamiRisk: tsunamiRisk.includes('EXTREME') ? 'EXTREME' :
+                        tsunamiRisk.includes('HIGH') ? 'HIGH' :
+                        tsunamiRisk.includes('MODERATE') ? 'MODERATE' :
+                        tsunamiRisk.includes('LOW') ? 'LOW' : 'NEGLIGIBLE'
+          })
+          setCasualtyEstimate(casualties)
+        }
+      } catch (error) {
+        console.error('Failed to calculate casualties:', error)
+      }
+    }
+    
+    calculateCasualties()
+  }, [impactLat, impactLon, energyTNT, craterKm, blastRadiusKm, elevation, tsunamiRisk])
+
+    const analyzeEnvironmentalEffects = (elev: number): TerrainKind => {
     const effects: string[] = []
+    let terrain: TerrainKind = 'Unknown'
+    let tsunamiRiskValue: string = 'Calculating...'
     
     // Determine terrain type
     if (elev < 0) {
+      terrain = 'Ocean/Sea'
       setTerrainType('Ocean/Sea')
       
       // Ocean impact - high tsunami risk
       const waterDepth = Math.abs(elev)
       if (energyTNT > 100) {
+        tsunamiRiskValue = 'EXTREME'
         setTsunamiRisk('EXTREME - Mega-tsunami expected')
         effects.push(`Mega-tsunami with waves up to ${(energyTNT * 0.5).toFixed(0)}m high`)
         effects.push(`Coastal devastation within ${(craterKm * 50).toFixed(0)} km`)
         effects.push('Widespread flooding of low-lying areas')
       } else if (energyTNT > 10) {
+        tsunamiRiskValue = 'HIGH'
         setTsunamiRisk('HIGH - Major tsunami likely')
         effects.push(`Major tsunami waves up to ${(energyTNT * 0.3).toFixed(0)}m`)
         effects.push('Significant coastal damage expected')
       } else {
+        tsunamiRiskValue = 'MODERATE'
         setTsunamiRisk('MODERATE - Local tsunami possible')
         effects.push('Local tsunami waves possible')
       }
@@ -101,27 +212,35 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
       effects.push('Marine ecosystem destruction')
       
     } else if (elev < 10) {
+      terrain = 'Coastal/Low-lying'
       setTerrainType('Coastal/Low-lying')
+      tsunamiRiskValue = 'MODERATE'
       setTsunamiRisk('MODERATE - Vulnerable to flooding')
       effects.push('Severe flooding from displaced water')
       effects.push('Storm surge-like effects')
       effects.push('Groundwater contamination')
       
     } else if (elev < 100) {
+      terrain = 'Plains/Valley'
       setTerrainType('Plains/Valley')
+      tsunamiRiskValue = 'LOW'
       setTsunamiRisk('LOW - Inland location')
       effects.push('Widespread ground shaking')
       effects.push('Dust cloud affecting air quality')
       effects.push('Potential river/lake displacement')
       
     } else if (elev < 500) {
+      terrain = 'Hills/Plateau'
       setTerrainType('Hills/Plateau')
+      tsunamiRiskValue = 'LOW'
       setTsunamiRisk('VERY LOW - Elevated terrain')
       effects.push('Seismic landslides possible')
       effects.push('Regional atmospheric disturbance')
       
     } else {
+      terrain = 'Mountains'
       setTerrainType('Mountains')
+      tsunamiRiskValue = 'NEGLIGIBLE'
       setTsunamiRisk('NEGLIGIBLE - Mountainous terrain')
       effects.push('Avalanches and rockslides')
       effects.push('Valley flooding from melted ice')
@@ -139,29 +258,10 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
       effects.push('Agricultural damage in impact zone')
     }
     
-    // Add seismic effects
-    const magnitude = 4 + Math.log10(energyTNT)
-    effects.push(`Earthquake equivalent: Magnitude ${magnitude.toFixed(1)}`)
-    
+    // Note: Earthquake magnitude is now displayed separately in the main stats
     setEnvironmentalEffects(effects)
+    return terrain
   }
-
-  // Calculate accurate impact zone sizes based on meteorite properties
-  // Using scientific formulas for impact effects
-  
-  // Crater diameter (already calculated in readouts)
-  const craterDiameterKm = craterKm
-  
-  // Blast radius (thermal effects) - roughly 2-3x crater radius
-  const blastRadiusKm = craterDiameterKm * 2.5
-  
-  // Seismic effects radius - roughly 10-20x crater radius
-  const seismicRadiusKm = craterDiameterKm * 15
-  
-  // Leaflet uses meters for circle radius, so convert km to meters
-  const craterRadiusM = (craterDiameterKm / 2) * 1000
-  const blastRadiusM = blastRadiusKm * 1000
-  const seismicRadiusM = seismicRadiusKm * 1000
 
   return (
     <div className="impact-map-overlay">
@@ -272,8 +372,8 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
                   <div className="legend-color seismic"></div>
                   <span>Seismic Zone: {seismicRadiusKm.toFixed(1)} km radius</span>
                 </div>
-              </div>
-            </div>
+                  </div>
+                </div>
 
             {/* Environmental Effects Section */}
             <div className="impact-legend" style={{ marginTop: '24px' }}>
@@ -291,18 +391,33 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
                     {terrainType}
                   </div>
                 </div>
-              </div>
+                  </div>
               
               <div className="stat-item" style={{ marginBottom: '12px' }}>
                 <div className="stat-label">Tsunami Risk</div>
                 <div className="stat-value" style={{ 
-                  fontSize: '16px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
                   color: tsunamiRisk.includes('EXTREME') ? '#ff0000' : 
                          tsunamiRisk.includes('HIGH') ? '#ff6b6b' : 
                          tsunamiRisk.includes('MODERATE') ? '#ffa500' : 
                          tsunamiRisk.includes('LOW') ? '#ffeb3b' : '#66ff66'
                 }}>
                   {tsunamiRisk}
+                </div>
+                  </div>
+
+              <div className="stat-item" style={{ marginBottom: '12px' }}>
+                <div className="stat-label">Earthquake Magnitude</div>
+                <div className="stat-value" style={{ 
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  color: earthquakeMagnitude >= 8 ? '#ff0000' : 
+                         earthquakeMagnitude >= 7 ? '#ff6b6b' : 
+                         earthquakeMagnitude >= 6 ? '#ffa500' : 
+                         earthquakeMagnitude >= 5 ? '#ffeb3b' : '#66ff66'
+                }}>
+                  {earthquakeMagnitude > 0 ? `Magnitude ${earthquakeMagnitude.toFixed(1)}` : 'Calculating...'}
                 </div>
               </div>
 
@@ -328,7 +443,76 @@ export default function ImpactMap({ onClose }: ImpactMapProps) {
                 ) : (
                   <div style={{ opacity: 0.6 }}>Analyzing environmental impact...</div>
                 )}
-              </div>
+                  </div>
+                </div>
+
+            {/* Population Impact Section */}
+            <div className="impact-legend" style={{ marginTop: '24px' }}>
+              <h4>Population Impact Analysis</h4>
+              
+              {casualtyEstimate ? (
+                <>
+                  <div className="stat-item" style={{ marginBottom: '16px', padding: '12px', backgroundColor: 'rgba(255, 0, 0, 0.1)', borderRadius: '8px', border: '1px solid rgba(255, 0, 0, 0.3)' }}>
+                    <div className="stat-label" style={{ color: '#ff4444', fontWeight: 'bold' }}>Estimated Casualties</div>
+                    <div className="stat-value" style={{ fontSize: '24px', color: '#ff0000', fontWeight: 'bold' }}>
+                      {casualtyEstimate.casualties.toLocaleString()} people
+                    </div>
+                  </div>
+
+                  <div className="stats-grid" style={{ marginBottom: '12px' }}>
+                <div className="stat-item">
+                      <div className="stat-label">Population Density</div>
+                      <div className="stat-value">
+                        {densityAssessment ? `${Math.round(densityAssessment.densityPkm2)} people/km²` : 'Loading...'}
+                  </div>
+                </div>
+                <div className="stat-item">
+                      <div className="stat-label">Area Type</div>
+                      <div className="stat-value" style={{ fontSize: '16px' }}>
+                        {densityAssessment ? densityAssessment.category : 'Unknown'}
+                </div>
+                    </div>
+                  </div>
+
+                  <div className="stats-grid" style={{ marginBottom: '12px' }}>
+                    <div className="stat-item">
+                      <div className="stat-label">Affected Area</div>
+                      <div className="stat-value">
+                        {casualtyEstimate.areaKm2.toFixed(0)} km²
+                      </div>
+                    </div>
+                  <div className="stat-item">
+                      <div className="stat-label">Fatality Rate</div>
+                      <div className="stat-value">
+                        {(casualtyEstimate.fatalityRate * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {densityAssessment?.note && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '8px 12px',
+                      backgroundColor: 'rgba(102, 224, 255, 0.1)',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(102, 224, 255, 0.3)',
+                      fontSize: '14px',
+                      color: '#66e0ff'
+                    }}>
+                      <strong>Data Source:</strong> {densityAssessment.source} {densityAssessment.note && `- ${densityAssessment.note}`}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ 
+                  textAlign: 'center', 
+                  opacity: 0.6, 
+                  padding: '20px',
+                  fontSize: '16px'
+                }}>
+                  Calculating population impact...
+                  </div>
+                )}
             </div>
           </div>
 
