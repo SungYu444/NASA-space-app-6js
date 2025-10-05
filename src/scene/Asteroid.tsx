@@ -58,16 +58,24 @@ export default function Asteroid(){
     // Update store with calculated impact point
     setImpactLatLon(impactLat, impactLon)
 
-    // Build curve each frame with current impact point
-    const tilt = (approach - 45) / 45
-    const start = new THREE.Vector3(-3 + tilt*0.3, 1.5 + tilt*0.2, 2.5 - tilt*0.3)
+    // Map approach angle (5-85°) to trajectory variation
+    const angleNorm = (approach - 45) / 40  // -1 to 1 range
+    
+    // Vary starting position significantly based on angle
+    const start = new THREE.Vector3(
+      -3 + angleNorm * 1.2,   // Horizontal shift
+      1.5 + angleNorm * 0.8,  // Vertical shift  
+      2.5 - angleNorm * 0.5   // Depth shift
+    )
+    
     const end = latLonToVector3(impactLat, impactLon, 1.02)
     
-    // Calculate midpoint and push it away from Earth center to create a proper arc
+    // Create arc with angle-dependent height
     const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5)
     const midDir = mid.clone().normalize()
-    mid.add(midDir.multiplyScalar(0.8))  // Push outward away from Earth
-    mid.add(new THREE.Vector3(0.5 + tilt*0.1, 0.3, -0.2))  // Additional offset
+    const arcHeight = 0.8 + Math.abs(angleNorm) * 0.6  // Higher arc for extreme angles
+    mid.add(midDir.multiplyScalar(arcHeight))
+    mid.add(new THREE.Vector3(0.5, 0.3 + angleNorm * 0.3, -0.2))
     
     const curve = new THREE.QuadraticBezierCurve3(start, mid, end)
 
