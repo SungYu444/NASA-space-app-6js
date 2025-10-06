@@ -28,8 +28,8 @@ npm -v
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/isaak1294/meteor-madness.git
-cd meteor-madness
+git clone https://github.com/SungYu444/NASA-space-app-6js.git
+cd NASA-space-app-6js
 ```
 
 2. **Install frontend dependencies**
